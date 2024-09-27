@@ -28,61 +28,8 @@ library(emmeans)
 #load data generated in step 2 (./code/2_modelTrain.R)
 load("../model_outputs/model_outputs.RData")
 
-
-############################################################################################################################
-#
-#                                       Figure S1
-#
-############################################################################################################################
-#Figure S1a
-custom_breaks <- c(0,1, 6, 11, 16,21,26,31,36,41,46,51,56,61,66,71,76,81,86,91,96,101,106,111,116,121,126)
-hist(d_fs$failTF_sum, breaks=custom_breaks, freq=TRUE, xlab="fs", main="", ylim=c(0,300))
-
-#Figure S1b
-hist(d$failTF_sum, breaks=custom_breaks, freq=TRUE, xlab="fs'", main="", ylim=c(0,300))
-
-############################################################################################################################
-#
-#                                       Figure S2
-#
-############################################################################################################################
-
-corr_matrix <- cor(dn)
-ggcorrplot(corr_matrix)
-
-
-############################################################################################################################
-#
-#                                       Figure S3
-#
-############################################################################################################################
-
-#Use the "label" and "select.ind" arguments to select only larger storms or high impact storms to label
-fviz_pca_biplot(pca, 
-                fill.ind=d$failTF_sum,
-                gradient.cols=c("white",brewer.pal(9, "YlOrRd")),
-                ggtheme = theme_minimal(),
-                pointsize=3,
-                pointshape=21,
-                label=FALSE,
-                repel = TRUE)
-
-
-############################################################################################################################
-#
-#                                       Figure S8
-#
-############################################################################################################################
-
-
-#TODO change axis labels, add connecting letter report to figure if there's time
-ggplot(d0,aes(locGrp,HurComp))+geom_boxplot(aes(fill=failTF_sum))+ theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
-                                                                                      panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
-
-#Figure S8 Tukey's HSD test
-anova <- aov(HurComp~failTF_sum*locGrp, data = d0)
-tukey <- TukeyHSD(anova)
-(cld <- multcompLetters4(anova, tukey))
+cmap = c("#1f77b4", "#2ca02c", "#9467bd", "#e377c2", "#bcbd22", "#17becf")
+locGrps = c("High Plains","Northeast", "MI Delta", "Southeast", "Midwest", "Texas Coast")
 
 
 ############################################################################################################################
@@ -270,8 +217,6 @@ p + theme_bw() + theme(panel.border = element_blank(), panel.grid.major = elemen
 dev.off()
 
 #Figure 2, location catepillar plot
-cmap = c("#1f77b4", "#2ca02c", "#9467bd", "#e377c2", "#bcbd22", "#17becf")
-locGrps = c("High Plains","Northeast", "MI Delta", "Southeast Coast", "Midwest", "Texas Coast")
 
 x <- ranef(m1,condVar=TRUE)[[2]]
 pv   <- attr(x, "postVar")
@@ -1448,6 +1393,7 @@ dev.off()
 #                                       Figure 4 option 6
 #
 ############################################################################################################################
+
 #Read in data####
 #h<-read.csv("../raw_data/NOAAHURDAT.csv")
 
@@ -1592,6 +1538,7 @@ legend(x = "topright",inset=c(-0.21,0), paste(expression(beta), "=", stats, sep=
 ####### Latitude panel#####
 coef = rep(NA, 6)
 pval = rep(NA, 6)
+int = rep(NA, 6)
 yr= seq(min(h$yr, na.rm=T), max(h$yr, na.rm=T))
 i=0
 m=lm(minlat~yr, data=h[h$locGrp==i,])
@@ -1658,7 +1605,7 @@ dev.off()
 
 ############################################################################################################################
 #
-#                     Predictions for text 
+#                     Figure 5 
 #
 ############################################################################################################################
 rm(list=ls())
@@ -1667,12 +1614,12 @@ load("../model_outputs/model_outputs.RData")
 h<-read.csv("../raw_data/NOAAHURDAT.csv")
 
 # Historical statistics 
-u_ws <- mean(d$wind_max)#53.704824202780046
-sd_ws <- sd(d$wind_max)#26.272791647341982
-u_z <- mean(d$pressure_min)#991.9623875715454
-sd_z <- sd(d$pressure_min)#19.597726204224276
-u_lat<- mean(d$minlat_min)#24.782739165985284
-sd_lat<- sd(d$minlat_min)#8.547811621083
+u_ws <- u["wind"]
+sd_ws <- sd["wind"]
+u_z <- u["pressure"]
+sd_z <- sd["pressure"]
+u_lat<- u["minlat"]
+sd_lat<- sd["minlat"]
 
 #
 time = c(1970, 2010, 2050)
@@ -1690,7 +1637,7 @@ spred$ws = (pred$ws - u_ws)/sd_ws
 spred$z = (pred$z - u_z)/sd_z
 spred$lat = (pred$lat - u_lat)/sd_lat
 spred
-names(spred)<-c("year", "minlat_min", "pressure_min", "wind_max")
+names(spred)<-c("year", "minlat", "pressure", "wind")
 
 # Transform predictions into pc space
 PC_pred <- as.data.frame(predict(pca, newdata=spred))
@@ -1698,43 +1645,42 @@ PC_pred$year = spred$year
 PC_pred
 
 
-wind_max = c(34, 63,82,95,112, 136)
-pressure_min = c(1020, 1000,980,965,945,920)
-
-hur_cat=data.frame(wind_max, pressure_min)
-hur_cat$minlat_min = rep(0)
-# hur_cat$pressure_min = rep(0)
-for(i in 1:length(wind_max)){
-#   hur_cat$minlat_min[i] = mean(h$lat[h$wind > wind_max[i]-4 & wind_max[i]+4])
-# hur_cat$pressure_min[i] = mean(h$pressure[h$wind > wind_max[i]-4 & wind_max[i]+4])
-}
-hur_cat$wind_max = (hur_cat$wind_max - u_ws)/sd_ws
-#hur_cat$pressure_min = (hur_cat$pressure_min - u_z)/40#sd_z
-hur_cat$pressure_min = (hur_cat$pressure_min - u_z)/sd_z
-hur_cat$minlat_min = (hur_cat$minlat_min - u_lat)/sd_lat
-
-#hur_cat$pressure_min = 1
-hur_cat$minlat_min = -4
-
-
+wind = (c(34, 63,82,95,112, 136)-u_ws)/sd_ws
+pressure = (c(1020, 1000,980,965,945,920)-u_z)/sd_z
+minlat = rep(-2,6)
+hur_cat=data.frame(wind, pressure, minlat)
 PC_hurcat <-as.data.frame(predict(pca, newdata=hur_cat))
-
-
-###########################################################################################################
-#
-#                   Figure 5
 # 
-###########################################################################################################
+# hur_cat$minlat_min = rep(0)
+# # hur_cat$pressure_min = rep(0)
+# for(i in 1:length(wind_max)){
+# #   hur_cat$minlat_min[i] = mean(h$lat[h$wind > wind_max[i]-4 & wind_max[i]+4])
+# # hur_cat$pressure_min[i] = mean(h$pressure[h$wind > wind_max[i]-4 & wind_max[i]+4])
+# }
+# hur_cat$wind_max = (hur_cat$wind_max - u_ws)/sd_ws
+# #hur_cat$pressure_min = (hur_cat$pressure_min - u_z)/40#sd_z
+# hur_cat$pressure_min = (hur_cat$pressure_min - u_z)/sd_z
+# hur_cat$minlat_min = (hur_cat$minlat_min - u_lat)/sd_lat
+# 
+# #hur_cat$pressure_min = 1
+# hur_cat$minlat_min = -4
+# 
+# 
+# PC_hurcat <-as.data.frame(predict(pca, newdata=hur_cat))
+
+
 cmap = c("#1f77b4", "#2ca02c", "#9467bd", "#e377c2", "#bcbd22", "#17becf")
 d <- d[order(d$HurComp),]
+par(mfrow=c(1,1))
+#pdf(file = "../figures/Figure5.pdf", width=6, height =6)
+svg(file = "../figures/Figure5.svg", width=6, height =6)
 
-pdf(file = "../figures/Figure5.pdf", width=6, height =6)
 #plot data####
 HurComp<-seq(min(d$HurComp), 7, by = 0.05)
 plot(exp(predict(m2, data.frame(HurComp=d$HurComp[d$locGrp==0], locGrp=0, yr=2014),
                  na.action=na.exclude))~d$HurComp[d$locGrp==0], 
      type="l",
-     lwd=2.5,
+     lwd=4,
      col=cmap[1],
      xlim=c(-2.2, 7), 
      ylim=c(0, 55), 
@@ -1751,11 +1697,11 @@ polygon(x = c(HurComp, rev(HurComp)),
 
 
 }
-points(exp(predict(m2, data.frame(HurComp=d$HurComp[d$locGrp==1], locGrp=1, yr=2014),na.action=na.exclude))~d$HurComp[d$locGrp==1],type="l", lwd=3,col=cmap[2])
-points(exp(predict(m2, data.frame(HurComp=d$HurComp[d$locGrp==2], locGrp=2, yr=2014),na.action=na.exclude))~d$HurComp[d$locGrp==2],type="l", lwd=3,col=cmap[3])
-points(exp(predict(m2, data.frame(HurComp=d$HurComp[d$locGrp==3], locGrp=3, yr=2014),na.action=na.exclude))~d$HurComp[d$locGrp==3],type="l", lwd=3,col=cmap[4])
-points(exp(predict(m2, data.frame(HurComp=d$HurComp[d$locGrp==4], locGrp=4, yr=2014),na.action=na.exclude))~d$HurComp[d$locGrp==4],type="l", lwd=3,col=cmap[5])
-points(exp(predict(m2, data.frame(HurComp=d$HurComp[d$locGrp==5], locGrp=5, yr=2014),na.action=na.exclude))~d$HurComp[d$locGrp==5],type="l", lwd=3,col=cmap[6])
+points(exp(predict(m2, data.frame(HurComp=d$HurComp[d$locGrp==1], locGrp=1, yr=2014),na.action=na.exclude))~d$HurComp[d$locGrp==1],type="l", lwd=4,col=cmap[2])
+points(exp(predict(m2, data.frame(HurComp=d$HurComp[d$locGrp==2], locGrp=2, yr=2014),na.action=na.exclude))~d$HurComp[d$locGrp==2],type="l", lwd=4,col=cmap[3])
+points(exp(predict(m2, data.frame(HurComp=d$HurComp[d$locGrp==3], locGrp=3, yr=2014),na.action=na.exclude))~d$HurComp[d$locGrp==3],type="l", lwd=4,col=cmap[4])
+points(exp(predict(m2, data.frame(HurComp=d$HurComp[d$locGrp==4], locGrp=4, yr=2014),na.action=na.exclude))~d$HurComp[d$locGrp==4],type="l", lwd=6,col=cmap[5])
+points(exp(predict(m2, data.frame(HurComp=d$HurComp[d$locGrp==5], locGrp=5, yr=2014),na.action=na.exclude))~d$HurComp[d$locGrp==5],type="l", lwd=4,col=cmap[6])
 
 points(exp(predict(m2, data.frame(HurComp=HurComp, locGrp=0, yr=2014),na.action=na.exclude))~HurComp,type="l", lwd=2,lty=3,col=cmap[1])
 points(exp(predict(m2, data.frame(HurComp=HurComp, locGrp=1, yr=2014),na.action=na.exclude))~HurComp,type="l", lwd=2,lty=3,col=cmap[2])
@@ -1792,8 +1738,83 @@ abline(v= PC_hurcat$Comp.1[3], lty =2, lwd=2, col="darkgray")#((82 - historical_
 abline(v= PC_hurcat$Comp.1[4], lty =2, lwd=2, col="darkgray")#((95 - historical_mean_windspeed) / historical_sd_windspeed))
 abline(v= PC_hurcat$Comp.1[5], lty =2, lwd=2, col="darkgray")#((112 - historical_mean_windspeed) / historical_sd_windspeed))
 abline(v= PC_hurcat$Comp.1[6], lty =2, lwd=2, col="darkgray")#((136 - historical_mean_windspeed) / historical_sd_windspeed))
+
+txt_y=rep(50, 7)
+txt_x=c((min(HurComp)+PC_hurcat$Comp.1[1])/2,
+  (PC_hurcat$Comp.1[1] + PC_hurcat$Comp.1[2])/2,
+  (PC_hurcat$Comp.1[2] + PC_hurcat$Comp.1[3])/2,
+  (PC_hurcat$Comp.1[3] + PC_hurcat$Comp.1[4])/2,
+  (PC_hurcat$Comp.1[4] + PC_hurcat$Comp.1[5])/2,
+  (PC_hurcat$Comp.1[5] + PC_hurcat$Comp.1[6])/2,
+   ((PC_hurcat$Comp.1[6] + max(HurComp))/2-0.2))
+labs=c(-1,0,1,2,3,4,5)
+text( txt_x, txt_y,labs,
+     cex = 1.5, pos = 1, col = "darkgray")
+
+legend(x = "left", c(locGrps, "1970 ann.max", "2010 ann.max", "2050 ann.max"), col=c(cmap, rep("black", 3)), lty=c(rep(1,6), rep(NA,3)),lwd=c(rep(3,6),rep(NA,3)),pch=c(rep(NA,6),c( 25,23,24)))
+
+
 #####
 dev.off()
+
+
+############################################################################################################################
+#
+#                                       Figure S1
+#
+############################################################################################################################
+#Figure S1a
+custom_breaks <- c(0,1, 6, 11, 16,21,26,31,36,41,46,51,56,61,66,71,76,81,86,91,96,101,106,111,116,121,126)
+hist(d_fs$failTF_sum, breaks=custom_breaks, freq=TRUE, xlab="fs", main="", ylim=c(0,300))
+
+#Figure S1b
+hist(d$failTF_sum, breaks=custom_breaks, freq=TRUE, xlab="fs'", main="", ylim=c(0,300))
+
+############################################################################################################################
+#
+#                                       Figure S2
+#
+############################################################################################################################
+
+corr_matrix <- cor(dn)
+ggcorrplot(corr_matrix)
+
+
+############################################################################################################################
+#
+#                                       Figure S3
+#
+############################################################################################################################
+
+#Use the "label" and "select.ind" arguments to select only larger storms or high impact storms to label
+fviz_pca_biplot(pca, 
+                fill.ind=d$failTF_sum,
+                gradient.cols=c("white",brewer.pal(9, "YlOrRd")),
+                ggtheme = theme_minimal(),
+                pointsize=3,
+                pointshape=21,
+                label=FALSE,
+                repel = TRUE)
+
+
+############################################################################################################################
+#
+#                                       Figure S8
+#
+############################################################################################################################
+
+
+#TODO change axis labels, add connecting letter report to figure if there's time
+ggplot(d0,aes(locGrp,HurComp))+geom_boxplot(aes(fill=failTF_sum))+ theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+                                                                                      panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))
+
+#Figure S8 Tukey's HSD test
+anova <- aov(HurComp~failTF_sum*locGrp, data = d0)
+tukey <- TukeyHSD(anova)
+(cld <- multcompLetters4(anova, tukey))
+
+
+
 #####################################################################################################################################################
 #
 #                   End script (clean up below)
