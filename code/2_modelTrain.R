@@ -4,7 +4,7 @@ require(lme4)
 require(lmerTest)
 
 #set working directory to "analysis_data" folder
-setwd("~/analysis_data")
+setwd("../analysis_data")
 
 
 #format data
@@ -58,21 +58,39 @@ d <- d[complete.cases(d),]
 #                         Principle Component Analysis
 #
 ############################################################################################################################
+#h <- read.csv("analysis_ready_binomial_k6.csv")
+h<-read.csv("../raw_data/NOAAHURDAT.csv")
+h$nameyr<-paste(h$name,as.character(h$year), sep="")
+h$minlat<-NA
+for(i in 1:length(h$minlat)){
+  h$minlat[i]<-min(h$lat[h$nameyr %in% h$nameyr[i]])
+}
 
-#Normalize hurricane variables
+
+
+dn <- scale(h[,c("wind","pressure","minlat")])
+u  <-apply(h[,c("wind","pressure","minlat")], 2, mean)
+sd <-apply(h[,c("wind","pressure","minlat")], 2, sd)
+#Normalize hurricane variables#Normalize hurricanmeane variables
 #dn is a dataframe of hurricane data
-dn <- scale(d[,c("wind_max","pressure_min","minlat_min")])
+#dn <- scale(d[,c("wind_max","pressure_min","minlat_min")])
 
 #name rownames by storm ID
-rownames(dn)<-paste(d$name, d$locGrp, sep="_")
+rownames(dn)<-paste(h$name, h$locGrp, sep="_")
 
 #Calculate principal components of three hurricane variables
 pca <- princomp(dn)
 
 #add first PC to analysis ready dataset, variable name HurComp
-d$HurComp = pca$scores[,1]
+h$HurComp = pca$scores[,1]
+
 d<-d[complete.cases(d),]
 
+comp <- data.frame(wind = d$wind_max, pressure = d$pressure_min, minlat=d$minlat_min)
+for(i in 1:(dim(comp)[1])){
+  comp[i,]<-(comp[i,]-u)/sd
+}
+d$HurComp <- predict(pca, comp)[,1]
 
 ############################################################################################################################
 #
@@ -98,7 +116,7 @@ summary(mb2)
 
 #Intepreting the log odds ratio
 plogis(fixef(mb2)[2])
-#a 1 sd increase in HurComp per TC is associated with a 0.5880979*100 percent increase in likelihood of at least one failure 
+#a 1 sd increase in HurComp per TC is associated with a 0.59*100 percent increase in likelihood of at least one failure 
 
 ############################################################################################################################
 #
@@ -120,65 +138,5 @@ summary(m2)
 #                   Save models and data derivatives to model_outputs folder
 #
 ##############################################################################################################################
-save(d_fs,d,d0,dn,m1,m2,mb1,mb2,pca,vars, file="../model_outputs/model_outputs.RData")
+save(d_fs,d,d0,dn,m1,m2,mb1,mb2,pca,vars,u,sd, file="../model_outputs/model_outputs.RData")
 
-############################################################################################################################
-#
-#                     Predictions 
-#
-############################################################################################################################
-
-# Historical statistics 
-historical_mean_windspeed <- 53.704824202780046
-historical_sd_windspeed <- 26.272791647341982
-historical_mean_pressure <- 991.9623875715454
-historical_sd_pressure <- 19.597726204224276
-historical_mean_latitude <- 24.782739165985284
-historical_sd_latitude <- 8.547811621083
-
-# Future predictions for 2050 
-future_windspeed_2050 <- 57.879812176803924
-future_pressure_2050 <- 987.3967669704609
-future_latitude_2050 <- 22.28750042690649
-
-# Standardize future predictions 
-wind_max <- (future_windspeed_2050 - historical_mean_windspeed) / historical_sd_windspeed
-pressure_min <- (future_pressure_2050 - historical_mean_pressure) / historical_sd_pressure
-minlat_min <- (future_latitude_2050 - historical_mean_latitude) / historical_sd_latitude
-
-# Transform future predictions into pc space
-# https://cran.r-project.org/web/packages/LearnPCA/vignettes/Vig_04_Scores_Loadings.pdf
-# https://cran.r-project.org/web/packages/pls/vignettes/pls-manual.pdf
-# Section 8
-# Combine into a single HurComp value 
-future_hurcomp_2050 <- predict(pca, newdata=data.frame(wind_max, pressure_min, minlat_min))[1]
-
-# Create new data frame for prediction
-newdata <- data.frame(
-  HurComp = future_hurcomp_2050,
-  yr = factor(rep(NA, 6)),  
-  locGrp = factor(0:5)    
-)
-
-
-
-# Ensure locGrp in newdata matches levels in original model
-levels(newdata$locGrp) <- levels(d$locGrp)  
-
-# Make predictions using the binomial model
-binom_predictions <- predict(mb2, newdata = newdata,  type = "response", allow.new.levels = TRUE)
-
-# Make predictions using the Poisson model
-poisson_predictions <- exp(predict(m2, newdata = newdata,  type = "response", allow.new.levels = TRUE))
-
-# Print the predictions
-cat("Binomial model predictions (probability of failure):\n")
-print(binom_predictions)
-
-cat("\nPoisson model predictions (expected number of failures):\n")
-print(poisson_predictions)
-
-# Plotting the predictions
-plot(exp(predict(m2, newdata = newdata, allow.new.levels = TRUE)), type = "p", col = "blue", pch = 19,
-     xlab = "Location Group", ylab = "Predicted Failures",
-     main = "Predicted Pipeline Failures by Location Group (2050)")
