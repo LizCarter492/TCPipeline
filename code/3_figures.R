@@ -145,7 +145,7 @@ p <- p + geom_hline(yintercept=0)
 p <- p + geom_point(size=sizel, shape=shapel, 
                     colour=rep(cmap[ord], each=2)) 
 p <- p + geom_errorbar(aes(ymin=y-ci, ymax=y+ci), width=0.15, colour=rep(c("gray","black"), 6))#rep(terrain.colors(46)[rep(ord, each=2)], each=2))
-p <- p + scale_x_discrete("location group", labels=locGrps)
+p <- p + scale_x_discrete("location group", labels=locGrps[ord])
 p + theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
                        panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))                      #  scale_fill_gradientn(
 dev.off()
@@ -261,7 +261,7 @@ p <- p + geom_hline(yintercept=0)
 p <- p + geom_point(size=sizel, shape=shapel, 
                     colour=rep(cmap[ord], each=2)) 
 p <- p + geom_errorbar(aes(ymin=y-ci, ymax=y+ci), width=0.15, colour=rep(c("gray","black"), 6))#rep(terrain.colors(46)[rep(ord, each=2)], each=2))
-p <- p + scale_x_discrete("location group", labels=locGrps)
+p <- p + scale_x_discrete("location group", labels=locGrps[ord])
 p + theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
                        panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))                      #  scale_fill_gradientn(
 dev.off()
@@ -1813,7 +1813,26 @@ anova <- aov(HurComp~failTF_sum*locGrp, data = d0)
 tukey <- TukeyHSD(anova)
 (cld <- multcompLetters4(anova, tukey))
 
+###################################################################################################################
+#
+#                 HurInt by Regions
+#
+##################################################################################################################
+cmap = c("#1f77b4", "#2ca02c", "#9467bd", "#e377c2", "#bcbd22", "#17becf")
+locGrps = c("High Plains","Northeast", "MI Delta", "Southeast", "Midwest", "Texas Coast")
+h<-read.csv("../analysis_data/analysis_ready_binomial_k6.csv")
+h <- h[h$lat>0,]
+h$pressure = h$pressure*-1
+#Create dataframe for annual max/min values
+time = seq(min(h$yr), max(h$yr))
 
+plot(h$lat~h$lon, col="white")
+points(h$lat[h$locGrp==0]~h$lon[h$locGrp==0], col=cmap[1])
+points(h$lat[h$locGrp==1]~h$lon[h$locGrp==1], col=cmap[2])
+points(h$lat[h$locGrp==2]~h$lon[h$locGrp==2], col=cmap[3])
+points(h$lat[h$locGrp==3]~h$lon[h$locGrp==3], col=cmap[4])
+points(h$lat[h$locGrp==4]~h$lon[h$locGrp==4], col=cmap[5])
+points(h$lat[h$locGrp==5]~h$lon[h$locGrp==5], col=cmap[6])
 
 #####################################################################################################################################################
 #
