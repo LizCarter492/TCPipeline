@@ -4,7 +4,7 @@ require(lme4)
 require(lmerTest)
 
 #set working directory to "analysis_data" folder
-setwd("../analysis_data")
+setwd("./analysis_data")
 
 
 #format data
@@ -71,9 +71,6 @@ for(i in 1:length(h$minlat)){
 dn <- scale(h[,c("wind","pressure","minlat")])
 u  <-apply(h[,c("wind","pressure","minlat")], 2, mean)
 sd <-apply(h[,c("wind","pressure","minlat")], 2, sd)
-#Normalize hurricane variables#Normalize hurricanmeane variables
-#dn is a dataframe of hurricane data
-#dn <- scale(d[,c("wind_max","pressure_min","minlat_min")])
 
 #name rownames by storm ID
 rownames(dn)<-paste(h$name, h$locGrp, sep="_")
@@ -120,7 +117,7 @@ plogis(fixef(mb2)[2])
 
 ############################################################################################################################
 #
-#                     Poisson Mixed-Effects Model
+#                     Poisson Mixed-Effects Model(Random Intercept)
 #
 ############################################################################################################################
 m1 <- glmer(failTF_sum ~ 1 + (1 | yr) + (1|locGrp) , data = d, family = poisson(link = "log"))
@@ -133,10 +130,25 @@ abline(0,1)
 summary(m1)
 summary(m2)
 
+############################################################################################################################
+#
+#                     Poisson Mixed-Effects Model (Random Slope)
+#
+############################################################################################################################
+ms1 <- glmer(failTF_sum ~ 1 + (1 | yr) + (1|locGrp) , data = d, family = poisson(link = "log"))
+ms2 <- glmer(failTF_sum ~  HurComp + (1| yr) + (1+ HurComp|locGrp), data = d, family = poisson(link = "log"))
+
+#look at model residuals
+plot(exp(predict(m2))~d$failTF_sum, xlim=c(0, 25), ylim=c(0, 25), xlab="observed fs'", ylab="Poisson predicted fs'")
+abline(0,1)
+
+summary(ms1)
+summary(ms2)
+
 ##############################################################################################################################
 #
 #                   Save models and data derivatives to model_outputs folder
 #
 ##############################################################################################################################
-save(d_fs,d,d0,dn,m1,m2,mb1,mb2,pca,vars,u,sd, file="../model_outputs/model_outputs.RData")
+save(d_fs,d,d0,dn,m1,m2,mb1,mb2,ms1,ms2,pca,vars,u,sd, file="./model_outputs/model_outputs.RData")
 

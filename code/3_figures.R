@@ -268,6 +268,123 @@ dev.off()
 
 ############################################################################################################################
 #
+#     Figure 3_2: a) summary of mixed-effects poisson model parameters and fit, predicting frequency of 60 day post-TC pipeline failures above average annual failure rate given TC intensity,
+#     with random intercepts on time and location, and a random slope on location, compared to null model; b) intercept shifts on location associated with prediction
+#     skill of TC intensity as a parameter, with open circles representing null model intercept, closed circles representing 
+#     TC intensity model intercept, and error bars representing 95% confidence intervals of intercept estimate; 3) as in b, but for 
+#     time random intercept. 
+############################################################################################################################
+load("../model_outputs/model_outputs.RData")
+summary(ms1)
+summary(ms2)
+
+#Figure 2a model table
+
+#Figure 2b year caterpillar plot
+x <- ranef(ms1,condVar=TRUE)[[1]]
+pv   <- attr(x, "postVar")
+cols <- 1:(dim(pv)[1])
+se   <- unlist(lapply(cols, function(i) sqrt(pv[i, i, ])))
+ord  <- unlist(lapply(x, order)) + rep((0:(ncol(x) - 1)) * nrow(x), each=nrow(x))
+
+pDf  <- data.frame(y=unlist(x)[ord],
+                   ci=1.96*se[ord],
+                   nQQ=rep(qnorm(ppoints(nrow(x))), ncol(x)),
+                   ID=factor(rep(rownames(x), ncol(x))[ord], levels=rownames(x)[ord]),
+                   ind=gl(ncol(x), nrow(x), labels=names(x)), 
+                   mod=rep("Null", nrow(x)))
+
+
+x <- ranef(ms2,condVar=TRUE)[[1]]
+pv   <- attr(x, "postVar")
+cols <- 1:(dim(pv)[1])
+se   <- unlist(lapply(cols, function(i) sqrt(pv[i, i, ])))
+
+pDf2  <- data.frame(y=unlist(x)[ord],
+                    ci=1.96*se[ord],
+                    nQQ=rep(qnorm(ppoints(nrow(x))), ncol(x)),
+                    ID=factor(rep(rownames(x), ncol(x))[ord], levels=rownames(x)[ord]),
+                    ind=gl(ncol(x), nrow(x), labels=names(x)),
+                    mod=rep("Poisson", nrow(x)))
+
+
+test<-rbindlist(list(pDf, pDf2))[order(ID)]
+test$grp <-paste(test$ID, test$mod, sep="_")
+test$grp <- factor(test$grp, levels=test$grp)
+
+
+#png(file="../figures/Figure2b.png", width =900, height=400)
+svg(file="../figures/Figure2_2b.svg", width =9, height=4)
+shapel = rep(c(1, 16), 46)
+sizel = rep(c(4.5, 2.5),46)
+p <- ggplot(test, aes(ID,y, group=grp)) #+ coord_flip()
+
+p <- p + geom_hline(yintercept=0)
+p <- p + geom_errorbar(aes(ymin=y-ci, ymax=y+ci), width=0.5, colour=rep(c("darkgray", "black"), 46))
+p <- p + geom_point(aes(colour = ID), shape=shapel, colour=rep(topo.colors(46)[ord], each=2), size=sizel)
+p <- p +  scale_fill_continuous(guide = guide_colourbar())
+p + theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+                       axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),
+                       panel.grid.minor = element_blank(), axis.line = element_line(colour = "black")) +
+  labs(x = "Year",
+       y = "Intercept",
+       color = "Legend") +
+  scale_color_manual(values = terrain.colors(11), breaks= seq(1975,2021, by=5))
+
+dev.off()
+
+#Figure 2, location catepillar plot
+
+x <- ranef(ms1,condVar=TRUE)[[2]]
+pv   <- attr(x, "postVar")
+cols <- 1:(dim(pv)[1])
+se   <- unlist(lapply(cols, function(i) sqrt(pv[i, i, ])))
+ord  <- unlist(lapply(x, order)) + rep((0:(ncol(x) - 1)) * nrow(x), each=nrow(x))
+
+pDf  <- data.frame(y=unlist(x)[ord],
+                   ci=1.96*se[ord],
+                   nQQ=rep(qnorm(ppoints(nrow(x))), ncol(x)),
+                   ID=factor(rep(rownames(x), ncol(x))[ord], levels=rownames(x)[ord]),
+                   ind=gl(ncol(x), nrow(x), labels=names(x)), 
+                   mod=rep("Null", nrow(x)))
+
+
+x <- ranef(ms2,condVar=TRUE)[[2]][[1]]
+pv   <- attr(ranef(ms2,condVar=TRUE)[[2]], "postVar")[1,1,]
+cols <- 1:(length(pv))
+se   <- unlist(lapply(cols, function(i) sqrt(pv)))
+
+pDf2  <- data.frame(y=unlist(x)[ord],
+                    ci=1.96*se[ord],
+                    nQQ=rep(qnorm(ppoints(nrow(x))), ncol(x)),
+                    ID=factor(rep(rownames(x), ncol(x))[ord], levels=rownames(x)[ord]),
+                    ind=gl(ncol(x), nrow(x), labels=names(x)),
+                    mod=rep("Poisson", nrow(x)))
+
+
+test<-rbindlist(list(pDf, pDf2))[order(ID)]
+test$grp <-paste(test$ID, test$mod, sep="_")
+test$grp <- factor(test$grp, levels=test$grp)
+
+
+
+shapel = rep(c(1, 16), 6)
+sizel = rep(c(4.5, 2.5),6)
+
+svg(file="../figures/Figure2_2c.svg", width =4.5, height=5)
+p <- ggplot(test, aes(ID,y)) + coord_flip()
+p <- p + theme(legend.position="none")
+p <- p + geom_hline(yintercept=0)
+p <- p + geom_point(size=sizel, shape=shapel, 
+                    colour=rep(cmap[ord], each=2)) 
+p <- p + geom_errorbar(aes(ymin=y-ci, ymax=y+ci), width=0.15, colour=rep(c("gray","black"), 6))#rep(terrain.colors(46)[rep(ord, each=2)], each=2))
+p <- p + scale_x_discrete("location group", labels=locGrps[ord])
+p + theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
+                       panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))                      #  scale_fill_gradientn(
+dev.off()
+
+############################################################################################################################
+#
 #                                       Figure 4d
 #
 ############################################################################################################################
@@ -1635,7 +1752,7 @@ pred
 spred = pred
 spred$ws = (pred$ws - u_ws)/sd_ws
 spred$z = (pred$z - u_z)/sd_z
-spred$lat = (pred$lat - u_lat)/sd_lat
+spred$lat = rep(0,3)#(pred$lat - u_lat)/sd_lat
 spred
 names(spred)<-c("year", "minlat", "pressure", "wind")
 
@@ -1647,7 +1764,7 @@ PC_pred
 
 wind = (c(34, 63,82,95,112, 136)-u_ws)/sd_ws
 pressure = (c(1020, 1000,980,965,945,920)-u_z)/sd_z
-minlat = rep(-2,6)
+minlat = rep(0,6)
 hur_cat=data.frame(wind, pressure, minlat)
 PC_hurcat <-as.data.frame(predict(pca, newdata=hur_cat))
 # 
@@ -1668,27 +1785,29 @@ PC_hurcat <-as.data.frame(predict(pca, newdata=hur_cat))
 # 
 # PC_hurcat <-as.data.frame(predict(pca, newdata=hur_cat))
 
-
+yr_s=2019
 cmap = c("#1f77b4", "#2ca02c", "#9467bd", "#e377c2", "#bcbd22", "#17becf")
 d <- d[order(d$HurComp),]
 par(mfrow=c(1,1))
 #pdf(file = "../figures/Figure5.pdf", width=6, height =6)
 svg(file = "../figures/Figure5.svg", width=6, height =6)
 
+m1<-ms1
+m2<-ms2
 #plot data####
 HurComp<-seq(min(d$HurComp), 7, by = 0.05)
-plot(exp(predict(m2, data.frame(HurComp=d$HurComp[d$locGrp==0], locGrp=0, yr=2014),
+plot(exp(predict(m2, data.frame(HurComp=d$HurComp[d$locGrp==0], locGrp=0, yr=yr_s),
                  na.action=na.exclude))~d$HurComp[d$locGrp==0], 
      type="l",
      lwd=4,
      col=cmap[1],
      xlim=c(-2.2, 7), 
-     ylim=c(0, 55), 
+     ylim=c(0, 30), 
      ylab="Poisson predicted fs'", xlab="TC intensity")
 
 for(i in 0:5){
-p4p<-predict(m2, data.frame(HurComp=HurComp, locGrp=i, yr=2014))
-se<-as.data.frame(emmeans(m2, ~HurComp, at = list(x = HurComp, locGrp=i, yr=2014)))$SE
+p4p<-predict(m2, data.frame(HurComp=HurComp, locGrp=i, yr=yr_s))
+se<-as.data.frame(emmeans(m2, ~HurComp, at = list(x = HurComp, locGrp=i, yr=yr_s)))$SE
 
 polygon(x = c(HurComp, rev(HurComp)),
         y = c(exp(p4p) - 1.96*exp(se),
@@ -1697,40 +1816,40 @@ polygon(x = c(HurComp, rev(HurComp)),
 
 
 }
-points(exp(predict(m2, data.frame(HurComp=d$HurComp[d$locGrp==1], locGrp=1, yr=2014),na.action=na.exclude))~d$HurComp[d$locGrp==1],type="l", lwd=4,col=cmap[2])
-points(exp(predict(m2, data.frame(HurComp=d$HurComp[d$locGrp==2], locGrp=2, yr=2014),na.action=na.exclude))~d$HurComp[d$locGrp==2],type="l", lwd=4,col=cmap[3])
-points(exp(predict(m2, data.frame(HurComp=d$HurComp[d$locGrp==3], locGrp=3, yr=2014),na.action=na.exclude))~d$HurComp[d$locGrp==3],type="l", lwd=4,col=cmap[4])
-points(exp(predict(m2, data.frame(HurComp=d$HurComp[d$locGrp==4], locGrp=4, yr=2014),na.action=na.exclude))~d$HurComp[d$locGrp==4],type="l", lwd=6,col=cmap[5])
-points(exp(predict(m2, data.frame(HurComp=d$HurComp[d$locGrp==5], locGrp=5, yr=2014),na.action=na.exclude))~d$HurComp[d$locGrp==5],type="l", lwd=4,col=cmap[6])
+points(exp(predict(m2, data.frame(HurComp=d$HurComp[d$locGrp==1], locGrp=1, yr=yr_s),na.action=na.exclude))~d$HurComp[d$locGrp==1],type="l", lwd=4,col=cmap[2])
+points(exp(predict(m2, data.frame(HurComp=d$HurComp[d$locGrp==2], locGrp=2, yr=yr_s),na.action=na.exclude))~d$HurComp[d$locGrp==2],type="l", lwd=4,col=cmap[3])
+points(exp(predict(m2, data.frame(HurComp=d$HurComp[d$locGrp==3], locGrp=3, yr=yr_s),na.action=na.exclude))~d$HurComp[d$locGrp==3],type="l", lwd=4,col=cmap[4])
+points(exp(predict(m2, data.frame(HurComp=d$HurComp[d$locGrp==4], locGrp=4, yr=yr_s),na.action=na.exclude))~d$HurComp[d$locGrp==4],type="l", lwd=6,col=cmap[5])
+points(exp(predict(m2, data.frame(HurComp=d$HurComp[d$locGrp==5], locGrp=5, yr=yr_s),na.action=na.exclude))~d$HurComp[d$locGrp==5],type="l", lwd=4,col=cmap[6])
 
-points(exp(predict(m2, data.frame(HurComp=HurComp, locGrp=0, yr=2014),na.action=na.exclude))~HurComp,type="l", lwd=2,lty=3,col=cmap[1])
-points(exp(predict(m2, data.frame(HurComp=HurComp, locGrp=1, yr=2014),na.action=na.exclude))~HurComp,type="l", lwd=2,lty=3,col=cmap[2])
-points(exp(predict(m2, data.frame(HurComp=HurComp, locGrp=2, yr=2014),na.action=na.exclude))~HurComp,type="l", lwd=2,lty=3,col=cmap[3])
-points(exp(predict(m2, data.frame(HurComp=HurComp, locGrp=3, yr=2014),na.action=na.exclude))~HurComp,type="l", lwd=2,lty=3,col=cmap[4])
-points(exp(predict(m2, data.frame(HurComp=HurComp, locGrp=4, yr=2014),na.action=na.exclude))~HurComp,type="l", lwd=2,lty=3,col=cmap[5])
-points(exp(predict(m2, data.frame(HurComp=HurComp, locGrp=5, yr=2014),na.action=na.exclude))~HurComp,type="l", lwd=2,lty=3,col=cmap[6])
+points(exp(predict(m2, data.frame(HurComp=HurComp, locGrp=0, yr=yr_s),na.action=na.exclude))~HurComp,type="l", lwd=2,lty=3,col=cmap[1])
+points(exp(predict(m2, data.frame(HurComp=HurComp, locGrp=1, yr=yr_s),na.action=na.exclude))~HurComp,type="l", lwd=2,lty=3,col=cmap[2])
+points(exp(predict(m2, data.frame(HurComp=HurComp, locGrp=2, yr=yr_s),na.action=na.exclude))~HurComp,type="l", lwd=2,lty=3,col=cmap[3])
+points(exp(predict(m2, data.frame(HurComp=HurComp, locGrp=3, yr=yr_s),na.action=na.exclude))~HurComp,type="l", lwd=2,lty=3,col=cmap[4])
+points(exp(predict(m2, data.frame(HurComp=HurComp, locGrp=4, yr=yr_s),na.action=na.exclude))~HurComp,type="l", lwd=2,lty=3,col=cmap[5])
+points(exp(predict(m2, data.frame(HurComp=HurComp, locGrp=5, yr=yr_s),na.action=na.exclude))~HurComp,type="l", lwd=2,lty=3,col=cmap[6])
 
 
-points(exp(predict(m2, data.frame(HurComp=PC_pred[1,1], locGrp=0, yr=2014),na.action=na.exclude))~PC_pred[1,1],type="p", pch = 25, cex=1.5,bg=cmap[1])
-points(exp(predict(m2, data.frame(HurComp=PC_pred[1,1], locGrp=1, yr=2014),na.action=na.exclude))~PC_pred[1,1],type="p", pch = 25, cex=1.5,bg=cmap[2])
-points(exp(predict(m2, data.frame(HurComp=PC_pred[1,1], locGrp=2, yr=2014),na.action=na.exclude))~PC_pred[1,1],type="p", pch = 25, cex=1.5,bg=cmap[3])
-points(exp(predict(m2, data.frame(HurComp=PC_pred[1,1], locGrp=3, yr=2014),na.action=na.exclude))~PC_pred[1,1],type="p", pch = 25, cex=1.5,bg=cmap[4])
-points(exp(predict(m2, data.frame(HurComp=PC_pred[1,1], locGrp=4, yr=2014),na.action=na.exclude))~PC_pred[1,1],type="p", pch = 25, cex=1.5,bg=cmap[5])
-points(exp(predict(m2, data.frame(HurComp=PC_pred[1,1], locGrp=5, yr=2014),na.action=na.exclude))~PC_pred[1,1],type="p", pch = 25, cex=1.5,bg=cmap[6])
+points(exp(predict(m2, data.frame(HurComp=PC_pred[1,1], locGrp=0, yr=yr_s),na.action=na.exclude))~PC_pred[1,1],type="p", pch = 25, cex=1.5,bg=cmap[1])
+points(exp(predict(m2, data.frame(HurComp=PC_pred[1,1], locGrp=1, yr=yr_s),na.action=na.exclude))~PC_pred[1,1],type="p", pch = 25, cex=1.5,bg=cmap[2])
+points(exp(predict(m2, data.frame(HurComp=PC_pred[1,1], locGrp=2, yr=yr_s),na.action=na.exclude))~PC_pred[1,1],type="p", pch = 25, cex=1.5,bg=cmap[3])
+points(exp(predict(m2, data.frame(HurComp=PC_pred[1,1], locGrp=3, yr=yr_s),na.action=na.exclude))~PC_pred[1,1],type="p", pch = 25, cex=1.5,bg=cmap[4])
+points(exp(predict(m2, data.frame(HurComp=PC_pred[1,1], locGrp=4, yr=yr_s),na.action=na.exclude))~PC_pred[1,1],type="p", pch = 25, cex=1.5,bg=cmap[5])
+points(exp(predict(m2, data.frame(HurComp=PC_pred[1,1], locGrp=5, yr=yr_s),na.action=na.exclude))~PC_pred[1,1],type="p", pch = 25, cex=1.5,bg=cmap[6])
 
-points(exp(predict(m2, data.frame(HurComp=PC_pred[2,1], locGrp=0, yr=2014),na.action=na.exclude))~PC_pred[2,1],type="p", pch = 23, cex=1.5,bg=cmap[1])
-points(exp(predict(m2, data.frame(HurComp=PC_pred[2,1], locGrp=1, yr=2014),na.action=na.exclude))~PC_pred[2,1],type="p", pch = 23, cex=1.5,bg=cmap[2])
-points(exp(predict(m2, data.frame(HurComp=PC_pred[2,1], locGrp=2, yr=2014),na.action=na.exclude))~PC_pred[2,1],type="p", pch = 23, cex=1.5,bg=cmap[3])
-points(exp(predict(m2, data.frame(HurComp=PC_pred[2,1], locGrp=3, yr=2014),na.action=na.exclude))~PC_pred[2,1],type="p", pch = 23, cex=1.5,bg=cmap[4])
-points(exp(predict(m2, data.frame(HurComp=PC_pred[2,1], locGrp=4, yr=2014),na.action=na.exclude))~PC_pred[2,1],type="p", pch = 23, cex=1.5,bg=cmap[5])
-points(exp(predict(m2, data.frame(HurComp=PC_pred[2,1], locGrp=5, yr=2014),na.action=na.exclude))~PC_pred[2,1],type="p", pch = 23, cex=1.5,bg=cmap[6])
+points(exp(predict(m2, data.frame(HurComp=PC_pred[2,1], locGrp=0, yr=yr_s),na.action=na.exclude))~PC_pred[2,1],type="p", pch = 23, cex=1.5,bg=cmap[1])
+points(exp(predict(m2, data.frame(HurComp=PC_pred[2,1], locGrp=1, yr=yr_s),na.action=na.exclude))~PC_pred[2,1],type="p", pch = 23, cex=1.5,bg=cmap[2])
+points(exp(predict(m2, data.frame(HurComp=PC_pred[2,1], locGrp=2, yr=yr_s),na.action=na.exclude))~PC_pred[2,1],type="p", pch = 23, cex=1.5,bg=cmap[3])
+points(exp(predict(m2, data.frame(HurComp=PC_pred[2,1], locGrp=3, yr=yr_s),na.action=na.exclude))~PC_pred[2,1],type="p", pch = 23, cex=1.5,bg=cmap[4])
+points(exp(predict(m2, data.frame(HurComp=PC_pred[2,1], locGrp=4, yr=yr_s),na.action=na.exclude))~PC_pred[2,1],type="p", pch = 23, cex=1.5,bg=cmap[5])
+points(exp(predict(m2, data.frame(HurComp=PC_pred[2,1], locGrp=5, yr=yr_s),na.action=na.exclude))~PC_pred[2,1],type="p", pch = 23, cex=1.5,bg=cmap[6])
 
-points(exp(predict(m2, data.frame(HurComp=PC_pred[3,1], locGrp=0, yr=2014),na.action=na.exclude))~PC_pred[3,1],type="p", pch = 24, cex=1.5,bg=cmap[1])
-points(exp(predict(m2, data.frame(HurComp=PC_pred[3,1], locGrp=1, yr=2014),na.action=na.exclude))~PC_pred[3,1],type="p", pch = 24, cex=1.5,bg=cmap[2])
-points(exp(predict(m2, data.frame(HurComp=PC_pred[3,1], locGrp=2, yr=2014),na.action=na.exclude))~PC_pred[3,1],type="p", pch = 24, cex=1.5,bg=cmap[3])
-points(exp(predict(m2, data.frame(HurComp=PC_pred[3,1], locGrp=3, yr=2014),na.action=na.exclude))~PC_pred[3,1],type="p", pch = 24, cex=1.5,bg=cmap[4])
-points(exp(predict(m2, data.frame(HurComp=PC_pred[3,1], locGrp=4, yr=2014),na.action=na.exclude))~PC_pred[3,1],type="p", pch = 24, cex=1.5,bg=cmap[5])
-points(exp(predict(m2, data.frame(HurComp=PC_pred[3,1], locGrp=5, yr=2014),na.action=na.exclude))~PC_pred[3,1],type="p", pch = 24, cex=1.5,bg=cmap[6])
+points(exp(predict(m2, data.frame(HurComp=PC_pred[3,1], locGrp=0, yr=yr_s),na.action=na.exclude))~PC_pred[3,1],type="p", pch = 24, cex=1.5,bg=cmap[1])
+points(exp(predict(m2, data.frame(HurComp=PC_pred[3,1], locGrp=1, yr=yr_s),na.action=na.exclude))~PC_pred[3,1],type="p", pch = 24, cex=1.5,bg=cmap[2])
+points(exp(predict(m2, data.frame(HurComp=PC_pred[3,1], locGrp=2, yr=yr_s),na.action=na.exclude))~PC_pred[3,1],type="p", pch = 24, cex=1.5,bg=cmap[3])
+points(exp(predict(m2, data.frame(HurComp=PC_pred[3,1], locGrp=3, yr=yr_s),na.action=na.exclude))~PC_pred[3,1],type="p", pch = 24, cex=1.5,bg=cmap[4])
+points(exp(predict(m2, data.frame(HurComp=PC_pred[3,1], locGrp=4, yr=yr_s),na.action=na.exclude))~PC_pred[3,1],type="p", pch = 24, cex=1.5,bg=cmap[5])
+points(exp(predict(m2, data.frame(HurComp=PC_pred[3,1], locGrp=5, yr=yr_s),na.action=na.exclude))~PC_pred[3,1],type="p", pch = 24, cex=1.5,bg=cmap[6])
 
 abline(v= PC_hurcat$Comp.1[1], lty =2, lwd=2, col="darkgray")#((33 - historical_mean_windspeed) / historical_sd_windspeed))
 abline(v= PC_hurcat$Comp.1[2], lty =2, lwd=2, col="darkgray")#((63 - historical_mean_windspeed) / historical_sd_windspeed))
@@ -1820,7 +1939,7 @@ tukey <- TukeyHSD(anova)
 ##################################################################################################################
 cmap = c("#1f77b4", "#2ca02c", "#9467bd", "#e377c2", "#bcbd22", "#17becf")
 locGrps = c("High Plains","Northeast", "MI Delta", "Southeast", "Midwest", "Texas Coast")
-h<-read.csv("../analysis_data/analysis_ready_binomial_k6.csv")
+h<-read.csv("./analysis_data/analysis_ready_binomial_k6.csv")
 h <- h[h$lat>0,]
 h$pressure = h$pressure*-1
 #Create dataframe for annual max/min values
