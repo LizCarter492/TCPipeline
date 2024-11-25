@@ -4,10 +4,11 @@ require(lme4)
 require(lmerTest)
 
 
-
+#read in data
+d= read.csv( "./analysis_data/analysis_ready.csv")
+h<-read.csv("./raw_data/NOAAHURDAT.csv")
 
 #format data
-d= read.csv( "./analysis_data/analysis_ready_7.csv")
 d$name = as.factor(d$name)
 d$pressure = d$pressure_min 
 d$locGrp = as.factor(d$locGrp)
@@ -57,8 +58,8 @@ d <- d[complete.cases(d),]
 #                         Principle Component Analysis
 #
 ############################################################################################################################
-#h <- read.csv("analysis_ready_binomial_k6.csv")
-h<-read.csv("./raw_data/NOAAHURDAT.csv")
+
+
 h$nameyr<-paste(h$name,as.character(h$year), sep="")
 h$minlat<-NA
 for(i in 1:length(h$minlat)){

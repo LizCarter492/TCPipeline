@@ -1,7 +1,6 @@
 ############################################################################################################################
 #           TODO
 #           *make this pretty (maybe an R Markdown?)
-#           *much finishing of figures, see "TODOs" throughout
 #           *description of each dataset loaded in .RData
 #############################################################################################################################
 library(GLMMadaptive)
@@ -247,7 +246,7 @@ rm(list=ls())
 load("./model_outputs/hur_trends.RData")
 load("./model_outputs/model_outputs.RData")
 h<-read.csv("./raw_data/NOAAHURDAT.csv")
-h_p<-read.csv("./analysis_data/analysis_ready_binomial_k6.csv")
+h_p<-read.csv("./analysis_data/analysis_ready_binomial.csv")
 cmap = c("#1f77b4", "#2ca02c", "#9467bd", "#e377c2", "#bcbd22", "#17becf")
 locGrps = c("High Plains","Northeast", "MI Delta", "Southeast", "Midwest", "Texas Coast")
 
@@ -437,7 +436,7 @@ dev.off()
 #
 ############################################################################################################################
 #Read in data
-h<-read.csv("./analysis_data/analysis_ready_binomial_k6.csv")
+h<-read.csv("./analysis_data/analysis_ready_binomial.csv")
 h <- h[h$lat>0,]
 cmap = c("#1f77b4", "#2ca02c", "#9467bd", "#e377c2", "#bcbd22", "#17becf")
 locGrps = c("High Plains","Northeast", "MI Delta", "Southeast", "Midwest", "Texas Coast")
