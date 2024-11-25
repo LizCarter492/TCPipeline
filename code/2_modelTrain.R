@@ -3,12 +3,11 @@ library(GLMMadaptive)
 require(lme4)
 require(lmerTest)
 
-#set working directory to "analysis_data" folder
-setwd("./analysis_data")
+
 
 
 #format data
-d= read.csv( "analysis_ready_7.csv")
+d= read.csv( "./analysis_data/analysis_ready_7.csv")
 d$name = as.factor(d$name)
 d$pressure = d$pressure_min 
 d$locGrp = as.factor(d$locGrp)
@@ -59,7 +58,7 @@ d <- d[complete.cases(d),]
 #
 ############################################################################################################################
 #h <- read.csv("analysis_ready_binomial_k6.csv")
-h<-read.csv("../raw_data/NOAAHURDAT.csv")
+h<-read.csv("./raw_data/NOAAHURDAT.csv")
 h$nameyr<-paste(h$name,as.character(h$year), sep="")
 h$minlat<-NA
 for(i in 1:length(h$minlat)){
@@ -139,7 +138,7 @@ ms1 <- glmer(failTF_sum ~ 1 + (1 | yr) + (1|locGrp) , data = d, family = poisson
 ms2 <- glmer(failTF_sum ~  HurComp + (1| yr) + (1+ HurComp|locGrp), data = d, family = poisson(link = "log"))
 
 #look at model residuals
-plot(exp(predict(m2))~d$failTF_sum, xlim=c(0, 25), ylim=c(0, 25), xlab="observed fs'", ylab="Poisson predicted fs'")
+plot(exp(predict(ms2))~d$failTF_sum, xlim=c(0, 25), ylim=c(0, 25), xlab="observed fs'", ylab="Poisson predicted fs'")
 abline(0,1)
 
 summary(ms1)
