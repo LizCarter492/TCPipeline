@@ -131,7 +131,7 @@ summary(m2)
 
 ############################################################################################################################
 #
-#                     Poisson Mixed-Effects Model (Random Slope)
+#                     Poisson Mixed-Effects Model (Random Slope + Intercept)
 #
 ############################################################################################################################
 ms1 <- glmer(failTF_sum ~ 1 + (1 | yr) + (1|locGrp) , data = d, family = poisson(link = "log"))
