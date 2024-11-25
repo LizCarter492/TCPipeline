@@ -8,7 +8,7 @@ Tropical cyclones (TCs, including hurricanes) have caused nearly $1.5 trillion i
 <em>Figure 1: Six regions where HMP infrastructure (major crude oil and natural gas transmission pipelines, EIA 2020) intersect with tropical cyclone storm tracks in the continental United States. For each region, table indicates total 1970-2022 TC-associated failures, maximum TC windspeed, length of crude oil pipeline, and length of natural gas pipeline</em>.
 
 
-#### This repository contains the following code and data to allow replication of our analysis:
+#### Use this repository to replicate our analysis:
 
 1. code
     * 1_formatData.ipynb : reads from **raw_data** (HURDAT2 and PHMSA failure datasets), merges on spatiotemporal concomittence, saves to **analysis_data** 
