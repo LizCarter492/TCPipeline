@@ -28,5 +28,5 @@ Tropical cyclones (TCs, including hurricanes) have caused nearly $1.5 trillion i
 
 Questions/comments/pull requests? Contact ekcarter@syr.edu
 
-   [This is a GRRIEn analysis and repository](https://journals.ametsoc.org/view/journals/aies/2/2/AIES-D-22-0065.1.xml) 
+   [This is a GRRIEn analysis](https://journals.ametsoc.org/view/journals/aies/2/2/AIES-D-22-0065.1.xml) 
 
