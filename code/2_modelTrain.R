@@ -78,8 +78,10 @@ rownames(dn)<-paste(h$name, h$locGrp, sep="_")
 #Calculate principal components of three hurricane variables
 pca <- princomp(dn)
 
-#add first PC to analysis ready dataset, variable name HurComp
+#add first PC to analysis-ready dataset, variable name HurComp
 h$HurComp = pca$scores[,1]
+#For reviewer 1, look at just maximum sustained windspeed
+h$ws_std<-as.data.frame(dn)$wind
 
 d<-d[complete.cases(d),]
 
@@ -88,7 +90,7 @@ for(i in 1:(dim(comp)[1])){
   comp[i,]<-(comp[i,]-u)/sd
 }
 d$HurComp <- predict(pca, comp)[,1]
-
+d$ws_std <- comp$wind
 ############################################################################################################################
 #
 #                     Binomial Mixed-Effects Model
@@ -104,10 +106,13 @@ mb1 <- glmer(failTF_sum ~ 1 + (1 | yr) + (1|locGrp) , data = d0, family = binomi
 mb2 <- glmer(failTF_sum ~  HurComp + (1 | yr) + (1|locGrp), data = d0, family = binomial(link = "logit"))
 #I have a feeling this last model will help us on review
 #mb3 <- glmer(failTF_sum ~  HurComp + (1 | yr) + (HurComp|locGrp), data = d0, family = binomial(link = "logit"))
+# Reviewer 1: request train model with just windspeed
+mb3 <- glmer(failTF_sum~ws_std+ (1 | yr) + (1|locGrp), data = d0, family = binomial(link = "logit"))
 
 #Summarize models
 summary(mb1)
 summary(mb2)
+summary(mb3)
 #See comment above
 #summary(mb3)
 
@@ -122,6 +127,7 @@ plogis(fixef(mb2)[2])
 ############################################################################################################################
 m1 <- glmer(failTF_sum ~ 1 + (1 | yr) + (1|locGrp) , data = d, family = poisson(link = "log"))
 m2 <- glmer(failTF_sum ~  HurComp + (1 | yr) + (1|locGrp), data = d, family = poisson(link = "log"))
+m3 <- glmer(failTF_sum ~  ws_std + (1 | yr) + (1|locGrp), data = d, family = poisson(link = "log"))
 
 #look at model residuals
 plot(exp(predict(m2))~d$failTF_sum, xlim=c(0, 25), ylim=c(0, 25), xlab="observed fs'", ylab="Poisson predicted fs'")
@@ -129,7 +135,7 @@ abline(0,1)
 
 summary(m1)
 summary(m2)
-
+summary(m3)
 ############################################################################################################################
 #
 #                     Poisson Mixed-Effects Model (Random Slope + Intercept)
@@ -137,6 +143,7 @@ summary(m2)
 ############################################################################################################################
 ms1 <- glmer(failTF_sum ~ 1 + (1 | yr) + (1|locGrp) , data = d, family = poisson(link = "log"))
 ms2 <- glmer(failTF_sum ~  HurComp + (1| yr) + (1+ HurComp|locGrp), data = d, family = poisson(link = "log"))
+ms3 <- glmer(failTF_sum ~  ws_std + (1| yr) + (1+ ws_std|locGrp), data = d, family = poisson(link = "log"))
 
 #look at model residuals
 plot(exp(predict(ms2))~d$failTF_sum, xlim=c(0, 25), ylim=c(0, 25), xlab="observed fs'", ylab="Poisson predicted fs'")
@@ -144,11 +151,11 @@ abline(0,1)
 
 summary(ms1)
 summary(ms2)
-
+summary(ms3)
 ##############################################################################################################################
 #
 #                   Save models and data derivatives to model_outputs folder
 #
 ##############################################################################################################################
-save(d_fs,d,d0,dn,m1,m2,mb1,mb2,ms1,ms2,pca,vars,u,sd, file="./model_outputs/model_outputs.RData")
+save(d_fs,d,d0,dn,m1,m2,m3,mb1,mb2,mb3,ms1,ms2,ms3,pca,vars,u,sd, file="./model_outputs/model_outputs.RData")
 
