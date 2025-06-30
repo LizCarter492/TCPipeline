@@ -1,7 +1,5 @@
 ############################################################################################################################
-#           TODO
-#           *make this pretty (maybe an R Markdown?)
-#           *description of each dataset loaded in .RData
+#          Figures and table from Smith and Carter (2025) 
 #############################################################################################################################
 library(GLMMadaptive)
 require(lme4)
@@ -17,16 +15,186 @@ library(data.table)
 library(multcompView)
 library(RColorBrewer)
 library(emmeans)
+library(ggplot2)
+library(viridis)
+library(gridExtra)
+library(gtable)
+library(webshot)
+
+####################################################################################
+#
+#         Figure 1
+#
+##################################################################################
+#Fig 1a, b####
+#created in ArcPro
+
+#Fig 1c####
+d= read.csv( "./analysis_data/analysis_ready.csv")
+
+#format data
+d$name = as.factor(d$name)
+d$pressure = d$pressure_min 
+d$locGrp = as.factor(d$locGrp)
+d$per = NA
+d$per = NA
+for(i in 1:length(d$per)){
+  if(d$yr[i] < 1980){
+    d$per[i] <-1
+  } else if (d$yr[i] < 1985){
+    d$per[i] <-2
+  } else if (d$yr[i] < 1990){
+    d$per[i] <-3
+  } else if (d$yr[i] < 1995){
+    d$per[i] <-4
+  } else if (d$yr[i] < 2000){
+    d$per[i] <-5
+  } else if (d$yr[i] < 2005){
+    d$per[i] <-6
+  } else if (d$yr[i] < 2010){
+    d$per[i] <-7
+  } else if (d$yr[i] < 2015){
+    d$per[i] <-8
+  } else {
+    d$per[i] <-9
+  }
+}    
+
+d$yr = as.factor(d$yr)
+
+vars = gsub('[[:digit:]]+', '', d$name)
+
+d_fs<-d
+#create data frame of year and locgrp combos
+years <- 1975:2022
+locGrps <- 0:5
+fo <- expand.grid(yr = years, locGrp = locGrps)
+fo$per = NA
+for(i in 1:length(fo$per)){
+  if(fo$yr[i] < 1980){
+    fo$per[i] <-1
+  } else if (fo$yr[i] < 1985){
+    fo$per[i] <-2
+  } else if (fo$yr[i] < 1990){
+    fo$per[i] <-3
+  } else if (fo$yr[i] < 1995){
+    fo$per[i] <-4
+  } else if (fo$yr[i] < 2000){
+    fo$per[i] <-5
+  } else if (fo$yr[i] < 2005){
+    fo$per[i] <-6
+  } else if (fo$yr[i] < 2010){
+    fo$per[i] <-7
+  } else if (fo$yr[i] < 2015){
+    fo$per[i] <-8
+  } else {
+    fo$per[i] <-9
+  }
+}
+
+fo$fo<-NA
+
+#Calculate fo
+for(y in 1:dim(fo)[1]){
+      fo$fo[y] <-mean(d$failTF_sum[which(d$locGrp==fo$locGrp[y] & d$per==fo$per[y] & vars=="NoStorm")], na.rm=FALSE)/(0.5*6.083)
+}
+
+fo$fo[fo$locGrp==4 & fo$per==1]<-19.151734
+
+# Define the color map and locGrp levels
+cmap = c("#1f77b4", "#2ca02c", "#9467bd", "#e377c2", "#bcbd22", "#17becf")
+locGrps = c("High Plains", "Northeast", "MI Delta", "Southeast", "Midwest", "Texas Coast")
+
+
+#Plot fs and fo
+svg(file="./figures/Figure1c.svg", width =5, height=9)
+par(mfrow = c(6, 1),          # 6 rows, 1 column
+    mar = c(1, 4, 0.5, 6), 
+    oma = c(3, 0, 2, 2))
+
+for(i in 0:5){  
+  # Plot the data
+  plot(d$failTF_sum[d$locGrp == i] ~ as.numeric(as.character(d$yr[d$locGrp == i])), 
+       col = cmap[i + 1], 
+       pch = 16, 
+       ylim=c(0, 100),
+       xlim=c(1975,2022),
+       ylab = expression(f[s]), 
+       xaxt = ifelse(i == 5, "s", "n"),
+       xlab = ifelse(i == 5, "Year", ""),  # Add xlab only to the bottom plot
+       axes = TRUE)            # Disable automatic axes for control
+  
+  # Draw custom axes (only bottom plot gets x-axis)
+  if (i == 5) {
+    axis(1, at = seq(1975, 2022, by = 5))   # Custom x-axis ticks (year)
+  }
+  axis(2)  # Add y-axis
+  
+  # Get valid years and corresponding f_o values
+  valid_fo_values <- fo$fo[fo$locGrp == i]
+  valid_years_fo <- fo$yr[fo$locGrp == i]
+  
+  # Ensure polygon does not extend beyond valid years
+  valid_data_indices <- which(valid_years_fo >= 1975 & valid_years_fo <= 2022)
+  
+  
+  # Find the first non-zero 'fo' value to adjust the upper left corner of the polygon
+  first_non_zero_fo_index <- which(valid_fo_values > 0)[1]  # Find first non-zero value
+  first_non_zero_fo_value <- valid_fo_values[first_non_zero_fo_index]
+  
+ 
+  
+  # Plot the gray background below the fo$fo line
+  polygon(c(valid_years_fo[valid_data_indices], rev(valid_years_fo[valid_data_indices])),
+          c(rep(-1.5, length(valid_years_fo[valid_data_indices])), rev(valid_fo_values[valid_data_indices])),
+          col = "gray80", border = NA)  # Fill area with gray color
+
+#  Plot the line for f_o 
+  points(fo$fo[fo$locGrp == i] ~ fo$yr[fo$locGrp == i], type = "l", col = cmap[i + 1], lwd=2)  # Line for f_o
+  
+# replot points  
+  points(d$failTF_sum[d$locGrp == i] ~ as.numeric(as.character(d$yr[d$locGrp == i])), pch=16, col = cmap[i + 1])  # Line for f_o
+}
+dev.off()
+
+
+
+
+
+# Full legend labels, including f_o (line) and f_s (point)
+svg(file="./figures/Figure1c_legend.svg", width =3, height=3)
+
+legend_labels <- c(locGrps, expression(f[o]), expression(f[s]))
+
+# Define symbols: NA for entries without point, NA for entries without line
+pch_vals <- c(rep(16, 6), NA, 16)   # f[o] has no point, f[s] has point
+lty_vals <- c(rep(NA, 6), 1, NA)    # f[o] has line, f[s] no line
+col_vals <- c(cmap, "black", "black")  # Use black for f[o] and f[s]
+
+
+par(mfrow = c(1, 1),      # Single figure for the legend
+    mar = c(0, 0, 0, 0),  # No margins around the legend plot
+    oma = c(0, 0, 0, 0))  # No outer margin for legend
+
+# Create a blank plot
+plot.new()
+# Add legend (adjust inset and position as needed)
+legend("center", inset = c(-0.25, 0), 
+       legend = legend_labels,
+       col = col_vals,
+       pch = pch_vals,
+       lty = lty_vals,
+       pt.cex = 1.5,
+       title = "Location Groups",
+       xpd = NA, bty = "n")
+dev.off()
 
 
 
 ############################################################################################################################
 #
-#     Figure 3: a) summary of mixed-effects poisson model parameters and fit, predicting frequency of 60 day post-TC pipeline failures above average annual failure rate given TC intensity,
-#     with random intercepts on time and location, and a random slope on location, compared to null model; b) intercept shifts on location associated with prediction
-#     skill of TC intensity as a parameter, with open circles representing null model intercept, closed circles representing 
-#     TC intensity model intercept, and error bars representing 95% confidence intervals of intercept estimate; 3) as in b, but for 
-#     time random intercept. 
+#         Figure 2
+#
 ############################################################################################################################
 load("./model_outputs/model_outputs.RData")
 cmap = c("#1f77b4", "#2ca02c", "#9467bd", "#e377c2", "#bcbd22", "#17becf")
@@ -35,14 +203,15 @@ locGrps = c("High Plains","Northeast", "MI Delta", "Southeast", "Midwest", "Texa
 
 summary(ms1)
 summary(ms2)
-#a, model table
+summary(ms3)
+#Fig2a, model table####
 tab_model(ms1,ms2, show.r2=FALSE, show.aic=TRUE,  show.ci=FALSE, show.icc=FALSE, show.loglik=TRUE, show.est=TRUE, show.re.var=TRUE, auto.label = FALSE, 
           pred.labels=c("Intercept","TCI"),
-          dv.labels=c("Null model", "TC Intensity"),
-          p.style="stars")
+          dv.labels=c("Null model", "TCI"),
+          p.style="stars",
+          file = "./figures/Figure2a.html")
 
-
-#b, year caterpillar plot
+#Fig2b, year caterpillar plot####
 x <- ranef(ms1,condVar=TRUE)[[1]]
 pv   <- attr(x, "postVar")
 cols <- 1:(dim(pv)[1])
@@ -75,7 +244,7 @@ test$grp <-paste(test$ID, test$mod, sep="_")
 test$grp <- factor(test$grp, levels=test$grp)
 
 
-svg(file="./figures/Figure3b.svg", width =9, height=4)
+svg(file="./figures/Figure2b.svg", width =9, height=4)
 shapel = rep(c(1, 16), 46)
 sizel = rep(c(4.5, 2.5),46)
 p <- ggplot(test, aes(ID,y, group=grp)) #+ coord_flip()
@@ -94,7 +263,7 @@ p + theme_bw() + theme(panel.border = element_blank(), panel.grid.major = elemen
 
 dev.off()
 
-#c, location catepillar plot
+#Fig2c, location caterpillar plot####
 
 x <- ranef(ms1,condVar=TRUE)[[2]]
 pv   <- attr(x, "postVar")
@@ -110,7 +279,7 @@ pDf  <- data.frame(y=unlist(x)[ord],
                    mod=rep("Null", nrow(x)))
 
 
-x <- ranef(ms2,condVar=TRUE)[[2]][[1]]
+x <- ranef(ms3,condVar=TRUE)[[2]][[1]]
 pv   <- attr(ranef(ms2,condVar=TRUE)[[2]], "postVar")[1,1,]
 cols <- 1:(length(pv))
 se   <- sqrt(pv)
@@ -132,7 +301,7 @@ test$grp <- factor(test$grp, levels=test$grp)
 shapel = rep(c(1, 16), 6)
 sizel = rep(c(4.5, 2.5),6)
 
-svg(file="./figures/Figure3c.svg", width =4.5, height=5)
+svg(file="./figures/Figure2c.svg", width =4.5, height=5)
 p <- ggplot(test, aes(ID,y)) + coord_flip()
 p <- p + theme(legend.position="none")
 p <- p + geom_hline(yintercept=0)
@@ -143,12 +312,57 @@ p <- p + scale_x_discrete("location group", labels=locGrps[ord])
 p + theme_bw() + theme(panel.border = element_blank(), panel.grid.major = element_blank(),
                        panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"))                      #  scale_fill_gradientn(
 dev.off()
+############################################################################################################################
+#
+#         Calculation of numeric values in logistic regression discussion
+#
+###################################################################################################################
+library(car)
+load("./model_outputs/hur_trends.RData")
+load("./model_outputs/model_outputs.RData")
 
+# Historical statistics 
+u_ws <- u["wind"]
+sd_ws <- sd["wind"]
+u_z <- u["pressure"]
+sd_z <- sd["pressure"]
+
+
+# Initialize  cutoffs for Saffir Simpson Hurricane scale
+wind = (c(34, 63,82,95,112, 136)-u_ws)/sd_ws
+pressure = (c(1020, 1000,980,965,945,920)-u_z)/sd_z
+hur_cat=data.frame(wind, pressure)
+
+PC_hurcat <-as.data.frame(predict(pca, newdata=hur_cat))
+
+#Summary table interpretting logistic regression in terms of SS hurricane scale
+BTC<-as.data.frame(PC_hurcat$Comp.1)
+names(BTC)<-c("HurComp")
+
+year_value <- 1979
+locGrp_value <- 5
+
+# Add columns to BTC
+BTC$yr <- rep(year_value, nrow(BTC))
+BTC$locGrp <- rep(locGrp_value, nrow(BTC))
+
+Intercept<-fixef(mb2)[1]
+BetaTCI<-fixef(mb2)[2]
+
+BTC
+
+BTC$P<-(exp(Intercept) + exp(BetaTCI*BTC$HurComp))/(1+(exp(Intercept) + exp(BetaTCI*BTC$HurComp)))
+
+
+exp(predict(mb2, BTC))/(1+exp(predict(mb2, BTC)))
+
+exp(predict(mb2, BTC))/(1+exp(predict(mb2, BTC)))
 ############################################################################################################################
 #
-#                                       Figure 4 a,b
+#         Figure 3
 #
 ############################################################################################################################
+#Fig3a,b####
 #Read in HURDAT2 raw data
 h<-read.csv("./raw_data/NOAAHURDAT.csv")
 h$nameyr<-paste(h$name,as.character(h$year), sep="")
@@ -161,17 +375,15 @@ time = seq(min(h$year), max(h$year))
 cli = as.data.frame(time)
 cli$ws<-rep(NA)
 cli$z<-rep(NA)
-cli$lat<-rep(NA)
 
 for(i in 1:length(time)){
   cli$ws[i]<-max(h$wind[h$year==cli$time[i]], na.rm=T)
   cli$z[i]<-min(h$pressure[h$year==cli$time[i]], na.rm=T)
-  cli$lat[i]<-min(h$minlat[h$year==cli$time[i]], na.rm=T)
 }
 #Create svg file to save image
-svg(file = "./figures/Figure4ab.svg", width=5, height =6)
+svg(file = "./figures/Figure3ab.svg", width=5, height =6)
 # set plot parameters
-par(mfrow=c(3,1), mar=c(2,5,1,1))
+par(mfrow=c(2,1), mar=c(2,5,1,1))
 # plot windspeed panel
 # train linear regression of annual max windspeed by year
 m1=lm(ws~time, data=cli)
@@ -214,39 +426,21 @@ points(lc$lwr~lc$time, type="l", lwd=1, lty=2, col="blue")
 points(lc$upr~lc$time, type="l", lwd=1, lty=2, col="blue")
 legend(x="bottomleft", legend=c(expression(paste(beta, " =")), paste(as.character(round(summary(m2)$coefficients[2,1], digits=3)), "**", sep="")))
 
-# plot latitude panel
-# train linear regression of annual min latitude by year
-m3=lm(lat~time, data=cli)
-l = as.data.frame(predict(m3, cli, interval = "prediction"))
-l$time = time
-plot(cli$lat~cli$time, type="l", 
-     ylim=c(min(l$lwr), max(cli$lat)),
-     ylab="annual min. latitude \n(degrees)",
-     xlab="year")
-points(l$fit~l$time, type="l", lwd=2)
-points(l$lwr~l$time, type="l", lwd=1, lty=2)
-points(l$upr~l$time, type="l", lwd=1, lty=2)
-lc = as.data.frame(predict(m3, cli, interval = "confidence"))
-lc$time = time
-points(lc$lwr~lc$time, type="l", lwd=1, lty=2, col="blue")
-points(lc$upr~lc$time, type="l", lwd=1, lty=2, col="blue")
-legend(x="bottomleft", legend=c(expression(paste(beta, " =")), paste(as.character(round(summary(m3)$coefficients[2,1], digits=3)), "***", sep="")))
 
 dev.off()
 hm1<-m1
 hm2<-m2
 hm3<-m3
 save(h, cli, hm1,hm2,hm3, file="./model_outputs/hur_trends.RData")
-#################################################################################
-#
-#                                        Fig 4c
-#
-################################################################################
+
+#Fig 3c####
 rm(list=ls())
 load("./model_outputs/hur_trends.RData")
 load("./model_outputs/model_outputs.RData")
 h<-read.csv("./raw_data/NOAAHURDAT.csv")
 h_p<-read.csv("./analysis_data/analysis_ready_binomial.csv")
+
+# Set plot parameters
 cmap = c("#1f77b4", "#2ca02c", "#9467bd", "#e377c2", "#bcbd22", "#17becf")
 locGrps = c("High Plains","Northeast", "MI Delta", "Southeast", "Midwest", "Texas Coast")
 
@@ -255,49 +449,49 @@ u_ws <- u["wind"]
 sd_ws <- sd["wind"]
 u_z <- u["pressure"]
 sd_z <- sd["pressure"]
-u_lat<- u["minlat"]
-sd_lat<- sd["minlat"]
 
-
+# Predictions for 1970, 2010, 2050
 time = c(1970, 2010, 2050)
 pred = as.data.frame(time)
-pred$ws<-pred$z<-pred$lat<-rep(NA)
+pred$ws<-pred$z<-rep(NA)
 
-pred$ws = predict(hm1, newdata=pred)
+pred$ws = predict(hm1, pred)
 pred$z = predict(hm2, pred)
-pred$lat = predict(hm3, pred)
 pred
 
 # Standardize predictions 
 spred = pred
 spred$ws = (pred$ws - u_ws)/sd_ws
 spred$z = (pred$z - u_z)/sd_z
-spred$lat = rep(0,3)
+names(spred)<-c("year", "pressure", "wind")
 spred
-names(spred)<-c("year", "minlat", "pressure", "wind")
 
 # Transform predictions into pc space
 PC_pred <- as.data.frame(predict(pca, newdata=spred))
 PC_pred$year = spred$year
 PC_pred
 
-
+# Initialize  cutoffs for Saffir Simpson Hurricane scale
 wind = (c(34, 63,82,95,112, 136)-u_ws)/sd_ws
 pressure = (c(1020, 1000,980,965,945,920)-u_z)/sd_z
-minlat = rep(0,6)
-hur_cat=data.frame(wind, pressure, minlat)
-PC_hurcat <-as.data.frame(predict(pca, newdata=hur_cat))
+hur_cat=data.frame(wind, pressure)
 
+PC_hurcat <-as.data.frame(predict(pca, newdata=hur_cat))
+PC_hurcat
+
+# Pick an intercept value
 yr_s=2014
-cmap = c("#1f77b4", "#2ca02c", "#9467bd", "#e377c2", "#bcbd22", "#17becf")
+
+#
 d <- d[order(d$HurComp),]
 par(mfrow=c(1,1))
-svg(file = "./figures/Figure4c.svg", width=6, height =6)
+svg(file = "./figures/Figure3c.svg", width=6, height =6)
 
-m1<-ms1
-m2<-ms2
+
 #plot data
-HurComp<-seq(min(d$HurComp), 7, by = 0.05)
+HurComp<-seq(-2.5, 7, by = 0.05)
+
+#Initialize plot with fs' projections for the historical range of max TCI for locGrp 0
 plot(exp(predict(ms2, data.frame(HurComp=d$HurComp[d$locGrp==0], locGrp=0, yr=yr_s),
                  na.action=na.exclude))~d$HurComp[d$locGrp==0], 
      type="l",
@@ -307,10 +501,13 @@ plot(exp(predict(ms2, data.frame(HurComp=d$HurComp[d$locGrp==0], locGrp=0, yr=yr
      ylim=c(0, 35), 
      ylab="Poisson predicted fs'", xlab="TC intensity")
 
-abline(v= PC_pred[1,1], lty =1, lwd=30, col="lightgoldenrod")#((136 - historical_mean_windspeed) / historical_sd_windspeed))
-abline(v= PC_pred[2,1], lty =1, lwd=30, col="lightgoldenrod")#((136 - historical_mean_windspeed) / historical_sd_windspeed))
-abline(v= PC_pred[3,1], lty =1, lwd=30, col="lightgoldenrod")#((136 - historical_mean_windspeed) / historical_sd_windspeed))
 
+#vertical bars representing 1970, 2010, and 2050 annual maximum TCI
+abline(v= PC_pred[1,1], lty =1, lwd=30, col="lightgoldenrod")
+abline(v= PC_pred[2,1], lty =1, lwd=30, col="lightgoldenrod")
+abline(v= PC_pred[3,1], lty =1, lwd=30, col="lightgoldenrod")
+
+# plot confidence interval of predicted fs'
 for(i in 0:5){
   p4p<-predict(ms2, data.frame(HurComp=HurComp, locGrp=i, yr=yr_s))
   se<-as.data.frame(emmeans(ms2, ~HurComp, at = list(x = HurComp, locGrp=i, yr=yr_s)))$SE
@@ -322,12 +519,15 @@ for(i in 0:5){
   
   
 }
+
+#add fs' projections for the historical range of max TCI for locGrp 1-5
 points(exp(predict(ms2, data.frame(HurComp=d$HurComp[d$locGrp==1], locGrp=1, yr=yr_s),na.action=na.exclude))~d$HurComp[d$locGrp==1],type="l", lwd=4,col=cmap[2])
 points(exp(predict(ms2, data.frame(HurComp=d$HurComp[d$locGrp==2], locGrp=2, yr=yr_s),na.action=na.exclude))~d$HurComp[d$locGrp==2],type="l", lwd=4,col=cmap[3])
 points(exp(predict(ms2, data.frame(HurComp=d$HurComp[d$locGrp==3], locGrp=3, yr=yr_s),na.action=na.exclude))~d$HurComp[d$locGrp==3],type="l", lwd=4,col=cmap[4])
 points(exp(predict(ms2, data.frame(HurComp=d$HurComp[d$locGrp==4], locGrp=4, yr=yr_s),na.action=na.exclude))~d$HurComp[d$locGrp==4],type="l", lwd=6,col=cmap[5])
 points(exp(predict(ms2, data.frame(HurComp=d$HurComp[d$locGrp==5], locGrp=5, yr=yr_s),na.action=na.exclude))~d$HurComp[d$locGrp==5],type="l", lwd=4,col=cmap[6])
 
+#add fs' projections for the full global range of max TCI
 points(exp(predict(ms2, data.frame(HurComp=HurComp, locGrp=0, yr=yr_s),na.action=na.exclude))~HurComp,type="l", lwd=2,lty=3,col=cmap[1])
 points(exp(predict(ms2, data.frame(HurComp=HurComp, locGrp=1, yr=yr_s),na.action=na.exclude))~HurComp,type="l", lwd=2,lty=3,col=cmap[2])
 points(exp(predict(ms2, data.frame(HurComp=HurComp, locGrp=2, yr=yr_s),na.action=na.exclude))~HurComp,type="l", lwd=2,lty=3,col=cmap[3])
@@ -335,40 +535,45 @@ points(exp(predict(ms2, data.frame(HurComp=HurComp, locGrp=3, yr=yr_s),na.action
 points(exp(predict(ms2, data.frame(HurComp=HurComp, locGrp=4, yr=yr_s),na.action=na.exclude))~HurComp,type="l", lwd=2,lty=3,col=cmap[5])
 points(exp(predict(ms2, data.frame(HurComp=HurComp, locGrp=5, yr=yr_s),na.action=na.exclude))~HurComp,type="l", lwd=2,lty=3,col=cmap[6])
 
-x=data.frame(yr=c(1970,2010,2050))
+#plot local fs' projections, based on observed linear trends in WS and z 
 for(i in 0:5){
   yr= seq(min(h_p$yr, na.rm=T), max(h_p$yr, na.rm=T))
-  wind = rep(NA,length(yr))
-  pressure = rep(NA,length(yr))
-  for(j in 1:length(yr)){
-    wind[j]<-max(h_p$wind[h_p$locGrp==i & h_p$yr==yr[j]], na.rm=T)
-    pressure[j]<--1*max(h_p$pressure[h_p$locGrp==i & h_p$yr==yr[j]], na.rm=T)
-  }
-  wind[wind==-Inf]<-NA
-  pressure[pressure==-Inf]<-NA
-  df<-data.frame('wind'=wind, 'pressure'=pressure, minlat=rep(0, length(yr)))
-  for(k in 1:(dim(df)[1])){
-    df[k,]<-(df[k,]-u)/sd
-  }
-  df$minlat=rep(-3.5)
-  df$HurComp <- predict(pca, df)[,1]
+  h_p_loc<-h_p[h_p$locGrp==i,]
+  wind <- h_p_loc %>%
+    group_by(yr) %>%
+    summarise(max_wind = max(wind, na.rm = TRUE))
+  pressure <- h_p_loc %>%
+    group_by(yr) %>%
+    summarise(min_z = min(pressure, na.rm = TRUE))
+  wind$max_wind[wind$max_wind==10] = NA
+  pressure$min_z[pressure$min_z==1050] = NA
   
-  m=lm(HurComp~yr, data=df)
-  p = predict(m,newdata=x)
-  print(i)
-  print(exp(predict(ms2, data.frame(HurComp=p, locGrp=i, yr=yr_s),na.action=na.exclude)))
-  points(exp(predict(ms2, data.frame(HurComp=p[1], locGrp=i, yr=yr_s),na.action=na.exclude))~p[1],type="p", pch = 25, cex=1.5,bg=cmap[i+1])
-  points(exp(predict(ms2, data.frame(HurComp=p[2], locGrp=i, yr=yr_s),na.action=na.exclude))~p[2],type="p", pch = 23, cex=1.5,bg=cmap[i+1])
-  points(exp(predict(ms2, data.frame(HurComp=p[3], locGrp=i, yr=yr_s),na.action=na.exclude))~p[3],type="p", pch = 24, cex=1.5,bg=cmap[i+1])
+  wind$max_wind = (wind$max_wind - u_ws)/sd_ws
+  pressure$min_z = (pressure$min_z-u_z)/sd_z
+  
+  hurI<-merge(wind, pressure, by="yr")
+  names(hurI)<-c("yr", "wind", "pressure")
+  
+  mw<-lm(wind~yr, data=hurI)
+  mp<-lm(pressure~yr, data=hurI)
+  
+  lpm<-data.frame(yr=c(1970, 2010, 2050), wind=c(NA, NA, NA), pressure=c(NA, NA, NA))
+  lpm$wind<-predict(mw, newdata=lpm)
+  lpm$pressure<-predict(mp, newdata=lpm)
+  lpm$HurComp<-predict(pca, lpm)[,1]
+  print(exp(predict(ms2, data.frame(HurComp=lpm$HurComp, locGrp=i, yr=yr_s),na.action=na.exclude)))
+  points(exp(predict(ms2, data.frame(HurComp=lpm$HurComp[1], locGrp=i, yr=yr_s),na.action=na.exclude))~lpm$HurComp[1],type="p", pch = 25, cex=1.5,bg=cmap[i+1])
+  points(exp(predict(ms2, data.frame(HurComp=lpm$HurComp[2], locGrp=i, yr=yr_s),na.action=na.exclude))~lpm$HurComp[2],type="p", pch = 23, cex=1.5,bg=cmap[i+1])
+  points(exp(predict(ms2, data.frame(HurComp=lpm$HurComp[3], locGrp=i, yr=yr_s),na.action=na.exclude))~lpm$HurComp[3],type="p", pch = 24, cex=1.5,bg=cmap[i+1])
+}  
 
-}
-
-abline(v= PC_hurcat$Comp.1[1], lty =2, lwd=2, col="darkgray")#((33 - historical_mean_windspeed) / historical_sd_windspeed))
-abline(v= PC_hurcat$Comp.1[2], lty =2, lwd=2, col="darkgray")#((63 - historical_mean_windspeed) / historical_sd_windspeed))
-abline(v= PC_hurcat$Comp.1[3], lty =2, lwd=2, col="darkgray")#((82 - historical_mean_windspeed) / historical_sd_windspeed))
-abline(v= PC_hurcat$Comp.1[4], lty =2, lwd=2, col="darkgray")#((95 - historical_mean_windspeed) / historical_sd_windspeed))
-abline(v= PC_hurcat$Comp.1[5], lty =2, lwd=2, col="darkgray")#((112 - historical_mean_windspeed) / historical_sd_windspeed))
-abline(v= PC_hurcat$Comp.1[6], lty =2, lwd=2, col="darkgray")#((136 - historical_mean_windspeed) / historical_sd_windspeed))
+#draw lines corresponding to cutoffs for Safir Simpson hurricane scale
+abline(v= PC_hurcat$Comp.1[1], lty =2, lwd=2, col="darkgray")# Tropical Storm
+abline(v= PC_hurcat$Comp.1[2], lty =2, lwd=2, col="darkgray")# Category 1
+abline(v= PC_hurcat$Comp.1[3], lty =2, lwd=2, col="darkgray")# Category 2
+abline(v= PC_hurcat$Comp.1[4], lty =2, lwd=2, col="darkgray")# Category 3
+abline(v= PC_hurcat$Comp.1[5], lty =2, lwd=2, col="darkgray")# Category 4
+abline(v= PC_hurcat$Comp.1[6], lty =2, lwd=2, col="darkgray")# Category 5
 
 
 
@@ -389,12 +594,68 @@ legend(x = "left", c(locGrps, "1970 ann.max", "2010 ann.max", "2050 ann.max"), c
 
 
 dev.off()
+#Fig 3d####
+# Define column and row names
+locGrps = c("High Plains","Northeast", "MI Delta", "Southeast", "Midwest", "Texas Coast")
+col_names <- c("1970", "2010", "2050")
+row_names <- as.character(0:5)
 
+# Create an empty data frame
+T3d <- data.frame(matrix(NA, nrow = length(row_names), ncol = length(col_names)),
+                 stringsAsFactors = FALSE)
+
+# Assign column and row names
+colnames(T3d) <- col_names
+rownames(T3d) <- row_names
+
+# View the empty data frame
+T3d
+for(i in row_names){
+  T3d[i,]<-exp(predict(ms2, data.frame(HurComp=PC_pred[,1], locGrp=i, yr=yr_s),na.action=na.exclude))
+}
+T3d<-round(T3d[,])
+rownames(T3d)<-locGrps
+
+gt <- tableGrob(T3d, theme = ttheme_minimal(
+  widths=list(3,1,1,1),
+))
+
+# Set up the SVG device to capture the plot
+svg(file = "./figures/Figure3d.svg", width=6, height =6)
+
+# Draw the table in the SVG file
+grid.draw(gt)
+
+# Close the SVG device (saves the file)
+dev.off()
+# Print the table to the plotting window
+############################################################################################################################
+#
+#         Table S1
+#
+############################################################################################################################
+tab_model(mb1,mb2, mb3, show.r2=FALSE, show.aic=TRUE,  show.ci=FALSE, show.icc=FALSE, show.loglik=TRUE, show.est=TRUE, show.re.var=TRUE, auto.label = FALSE, 
+          pred.labels=c("Intercept","TCI", "WS"),
+          dv.labels=c("Null model", "TC Intensity", "Max Windspeed"),
+          p.style="stars",
+          file = "./figures/TableS1.html")
 
 
 ############################################################################################################################
 #
-#                                       Figure S2
+#         Table S2
+#
+############################################################################################################################
+tab_model(ms1,ms2, ms3, show.r2=FALSE, show.aic=TRUE,  show.ci=FALSE, show.icc=FALSE, show.loglik=TRUE, show.est=TRUE, show.re.var=TRUE, auto.label = FALSE, 
+          pred.labels=c("Intercept","TCI", "WS"),
+          dv.labels=c("Null model", "TC Intensity", "Max Windspeed"),
+          p.style="stars",
+          file = "./figures/TableS2.html")
+
+
+############################################################################################################################
+#
+#         Figure S2
 #
 ############################################################################################################################
 #Figure S1a
@@ -407,32 +668,48 @@ hist(d_fs$failTF_sum, breaks=custom_breaks, freq=TRUE, xlab="fs", main="", ylim=
 #Figure S1b
 hist(d$failTF_sum, breaks=custom_breaks, freq=TRUE, xlab="fs'", main="", ylim=c(0,300))
 dev.off()
+#################################################################################################3###########################
+#
+#         Figure S3
+#
+#############################################################################################################################
+h_p<-read.csv("./analysis_data/analysis_ready_binomial.csv")
+as<-h_p_loc[h_p_loc]
+d_trend <- h_p_loc %>%
+  group_by(yr) %>%
+  summarise(total_failTF = sum(failTF, na.rm = TRUE))
+d_trend$yr <-as.numeric(as.character(d_trend$yr))
+plot(d_trend, xlab="year", ylab="fs", pch=16, col="blue")
+tl<-lm(d_trend$total_failTF~d_trend$yr)
+abline(tl$coefficients, col="black",lwd=3)
+
+
 ############################################################################################################################
 #
-#                                       Figure S3
+#         Figure S4
 #
 ############################################################################################################################
 load("./model_outputs/model_outputs.RData")
 corr_matrix <- cor(dn)
-svg(file = "./figures/FigureS3.svg", width=3, height =3)
+svg(file = "./figures/FigureS4.svg", width=3, height =3)
 ggcorrplot(corr_matrix)
 dev.off()
 
 ############################################################################################################################
 #
-#                                       Figure S4
+#         Figure S5
 #
 ############################################################################################################################
 load("./model_outputs/model_outputs.RData")
 #Use the "label" and "select.ind" arguments to select only larger storms or high impact storms to label
-svg(file = "./figures/FigureS4.svg", width=8, height =5)
+svg(file = "./figures/FigureS5.svg", width=8, height =5)
 fviz_pca_var(pca, col.var = "cos2",
              repel = FALSE)
 dev.off()
 
 ############################################################################################################################
 #
-#                                       Figure S5
+#         Figure S6
 #
 ############################################################################################################################
 #Read in data
@@ -717,23 +994,10 @@ legend(x = "topright",inset=c(-0.275,0), paste(expression(beta), "=", stats, sep
 
 dev.off()
 
-#################################################################################################3###########################
-#
-#     Figure S6 & S7, see ipynb
-#
-#
-#############################################################################################################################
-
-plot(d_fs$failTF_sum~(as.numeric(as.character((d_fs$yr)))), xlab="year", ylab="fs", pch=10)
-tl<-lm(d_fs$failTF_sum~(as.numeric(as.character((d_fs$yr)))))
-abline(tl$coefficients, col="red",lwd=3)
 ############################################################################################################################
 #
-#     Figure S8: a) summary of mixed-effects binomial model parameters and fit, predicting likelihood of >=1 pipeline failures given TC intensity,
-#     with random intercepts on time and location, compared to null model; b) intercept shifts on location associated with prediction
-#     skill of TC intensity as a parameter, with open circles representing null model intercept, closed circles representing 
-#     TC intensity model intercept, and error bars representing 95% confidence intervals of intercept estimate; 3) as in b, but for 
-#     time random intercept. 
+#         Figure S7
+#
 ############################################################################################################################
 load("./model_outputs/model_outputs.RData")
 cmap = c("#1f77b4", "#2ca02c", "#9467bd", "#e377c2", "#bcbd22", "#17becf")
@@ -744,15 +1008,15 @@ summary(mb1)
 summary(mb2)
 
 
-#Figure 1
-#a, model table
+#FigS7a#####
 tab_model(mb1,mb2, show.r2=FALSE, show.aic=TRUE,  show.ci=FALSE, show.icc=FALSE, show.loglik=TRUE, show.est=TRUE, show.re.var=TRUE, auto.label = FALSE, 
           pred.labels=c("Intercept","TCI"),
           dv.labels=c("Null model", "TC Intensity"),
-          p.style="stars")
+          p.style="stars",
+          file="./figures/FigureS7a.html")
 
 
-#c, year caterpillar plot
+#FigS7c, year caterpillar plot####
 x <- ranef(mb1,condVar=TRUE)[[1]]
 pv   <- attr(x, "postVar")
 cols <- 1:(dim(pv)[1])
@@ -785,7 +1049,7 @@ test$grp <-paste(test$ID, test$mod, sep="_")
 test$grp <- factor(test$grp, levels=test$grp)
 
 
-svg(file="./figures/FigureS8b.svg", width =9, height=4)
+svg(file="./figures/FigureS7b.svg", width =9, height=4)
 shapel = rep(c(1, 16), 46)
 sizel = rep(c(4.5, 2.5),46)
 p <- ggplot(test, aes(ID,y, group=grp))# + coord_flip()
@@ -804,8 +1068,7 @@ p + theme_bw() + theme(panel.border = element_blank(), panel.grid.major = elemen
 p <- p +  scale_fill_continuous(guide = guide_colourbar())
 dev.off()
 
-#b, location caterpillar plot
-
+#FigS7b, location caterpillar plot####
 x <- ranef(mb1,condVar=TRUE)[[2]]
 pv   <- attr(x, "postVar")
 cols <- 1:(dim(pv)[1])
@@ -841,7 +1104,7 @@ test$grp <- factor(test$grp, levels=test$grp)
 
 shapel = rep(c(1, 16), 6)
 sizel = rep(c(4.5, 2.5),6)
-svg(file="./figures/FigureS8c.svg", width =4.5, height=5)
+svg(file="./figures/FigureS7c.svg", width =4.5, height=5)
 p <- ggplot(test, aes(ID,y)) + coord_flip()
 p <- p + theme(legend.position="none")
 p <- p + geom_hline(yintercept=0)
@@ -854,17 +1117,118 @@ p + theme_bw() + theme(panel.border = element_blank(), panel.grid.major = elemen
 dev.off()
 
 
-
 ############################################################################################################################
 #
-#     Figure S9: Marilyn add
+#         Figure S8
 #
 ################################################################################################################
+rm(list=ls())
+load("./model_outputs/hur_trends.RData")
 load("./model_outputs/model_outputs.RData")
+h<-read.csv("./raw_data/NOAAHURDAT.csv")
+h_p<-read.csv("./analysis_data/analysis_ready_binomial.csv")
+cmap = c("#1f77b4", "#2ca02c", "#9467bd", "#e377c2", "#bcbd22", "#17becf")
+locGrps = c("High Plains","Northeast", "MI Delta", "Southeast", "Midwest", "Texas Coast")
+
+# Historical statistics 
+u_ws <- u["wind"]
+sd_ws <- sd["wind"]
+
+
+time = c(1970, 2010, 2050)
+pred = as.data.frame(time)
+pred$ws<-rep(NA)
+pred$ws = predict(hm1, newdata=pred)
+pred
+
+# Standardize predictions 
+spred = pred
+spred$ws = (pred$ws - u_ws)/sd_ws
+names(spred)<-c("year", "wind")
+spred
+
+sswind = (c(34, 63,82,95,112, 136)-u_ws)/sd_ws
+
+yr_s=2014
+cmap = c("#1f77b4", "#2ca02c", "#9467bd", "#e377c2", "#bcbd22", "#17becf")
+d <- d[order(d$ws_std),]
+par(mfrow=c(1,1))
+svg(file = "./figures/FigureS8.svg", width=6, height =6)
+
+#m1<-ms1
+#m2<-ms3
+#plot data
+#HurComp<-seq(min(d$HurComp), 7, by = 0.05)
+ws_std<-seq(min(d$ws_std), 4, by = 0.05)
+plot(exp(predict(ms3, data.frame(ws_std=d$ws_std[d$locGrp==0], locGrp=0, yr=yr_s),
+                 na.action=na.exclude))~d$ws_std[d$locGrp==0], 
+     type="l",
+     lwd=4,
+     col=cmap[1],
+     xlim=c(-1.7, 4), 
+     ylim=c(0, 35), 
+     ylab="Poisson predicted fs'", xlab=expression("maximum windspeed (" * sigma * ")"))
+
+abline(v= spred[1,2], lty =1, lwd=30, col="lightgoldenrod")#((136 - historical_mean_windspeed) / historical_sd_windspeed))
+abline(v= spred[2,2], lty =1, lwd=30, col="lightgoldenrod")#((136 - historical_mean_windspeed) / historical_sd_windspeed))
+abline(v= spred[3,2], lty =1, lwd=30, col="lightgoldenrod")#((136 - historical_mean_windspeed) / historical_sd_windspeed))
+
+for(i in 0:5){
+  p4p<-predict(ms3, data.frame(ws_std=ws_std, locGrp=i, yr=yr_s))
+  se<-as.data.frame(emmeans(ms3, ~ws_std, at = list(x = ws_std, locGrp=i, yr=yr_s)))$SE
+  
+  polygon(x = c(ws_std, rev(ws_std)),
+          y = c(exp(p4p) - 1.96*exp(se),
+                rev(exp(p4p) +1.96*exp(se))),
+          col =  adjustcolor(cmap[i+1], alpha.f = 0.1), border = NA)
+  
+  
+}
+points(exp(predict(ms3, data.frame(ws_std=d$ws_std[d$locGrp==1], locGrp=1, yr=yr_s),na.action=na.exclude))~d$ws_std[d$locGrp==1],type="l", lwd=4,col=cmap[2])
+points(exp(predict(ms3, data.frame(ws_std=d$ws_std[d$locGrp==2], locGrp=2, yr=yr_s),na.action=na.exclude))~d$ws_std[d$locGrp==2],type="l", lwd=4,col=cmap[3])
+points(exp(predict(ms3, data.frame(ws_std=d$ws_std[d$locGrp==3], locGrp=3, yr=yr_s),na.action=na.exclude))~d$ws_std[d$locGrp==3],type="l", lwd=4,col=cmap[4])
+points(exp(predict(ms3, data.frame(ws_std=d$ws_std[d$locGrp==4], locGrp=4, yr=yr_s),na.action=na.exclude))~d$ws_std[d$locGrp==4],type="l", lwd=6,col=cmap[5])
+points(exp(predict(ms3, data.frame(ws_std=d$ws_std[d$locGrp==5], locGrp=5, yr=yr_s),na.action=na.exclude))~d$ws_std[d$locGrp==5],type="l", lwd=4,col=cmap[6])
+
+points(exp(predict(ms3, data.frame(ws_std=ws_std, locGrp=0, yr=yr_s),na.action=na.exclude))~ws_std,type="l", lwd=2,lty=3,col=cmap[1])
+points(exp(predict(ms3, data.frame(ws_std=ws_std, locGrp=1, yr=yr_s),na.action=na.exclude))~ws_std,type="l", lwd=2,lty=3,col=cmap[2])
+points(exp(predict(ms3, data.frame(ws_std=ws_std, locGrp=2, yr=yr_s),na.action=na.exclude))~ws_std,type="l", lwd=2,lty=3,col=cmap[3])
+points(exp(predict(ms3, data.frame(ws_std=ws_std, locGrp=3, yr=yr_s),na.action=na.exclude))~ws_std,type="l", lwd=2,lty=3,col=cmap[4])
+points(exp(predict(ms3, data.frame(ws_std=ws_std, locGrp=4, yr=yr_s),na.action=na.exclude))~ws_std,type="l", lwd=2,lty=3,col=cmap[5])
+points(exp(predict(ms3, data.frame(ws_std=ws_std, locGrp=5, yr=yr_s),na.action=na.exclude))~ws_std,type="l", lwd=2,lty=3,col=cmap[6])
+h$yr<-h$year
+
+abline(v= sswind[1], lty =2, lwd=2, col="darkgray")#((33 - historical_mean_windspeed) / historical_sd_windspeed))
+abline(v= sswind[2], lty =2, lwd=2, col="darkgray")#((63 - historical_mean_windspeed) / historical_sd_windspeed))
+abline(v= sswind[3], lty =2, lwd=2, col="darkgray")#((82 - historical_mean_windspeed) / historical_sd_windspeed))
+abline(v= sswind[4], lty =2, lwd=2, col="darkgray")#((95 - historical_mean_windspeed) / historical_sd_windspeed))
+abline(v= sswind[5], lty =2, lwd=2, col="darkgray")#((112 - historical_mean_windspeed) / historical_sd_windspeed))
+abline(v= sswind[6], lty =2, lwd=2, col="darkgray")#((136 - historical_mean_windspeed) / historical_sd_windspeed))
+
+
+
+txt_y=rep(35, 7)
+txt_x=c((min(ws_std)+sswind[1])/2,
+        (sswind[1] + sswind[2])/2,
+        (sswind[2] + sswind[3])/2,
+        (sswind[3] + sswind[4])/2,
+        (sswind[4] + sswind[5])/2,
+        (sswind[5] + sswind[6])/2,
+        ((sswind[6] + max(ws_std))/2-0.2))
+labs=c(-1,0,1,2,3,4,5)
+text( txt_x, txt_y,labs,
+      cex = 1.5, pos = 1, col = "darkgray")
+
+legend(x = "left", c(locGrps), col=c(cmap), lty=c(rep(1,6)),lwd=c(rep(3,6)),pch=c(rep(NA,6)))
+
+
+
+dev.off()
+
 
 ############################################################################################################################
 #
-#     Figure S10
+#         Figure S9
 #
 ################################################################################################################
 h<-read.csv("./raw_data/NOAAHURDAT.csv")
